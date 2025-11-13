@@ -26,23 +26,36 @@ Open `data/frequencies.js` and modify the array:
 
 ```js
 window.FREQUENCY_DATA = [
-  { name: "Brain Fog", frequency: 291.9 },
-  { name: "Headache", frequency: 291.9 },
-  { name: "Calm", frequency: 174.0 },
+  {
+    name: "Brain Fog",
+    frequency: 291.9,
+    category: "Neurological",      // optional (defaults to "General")
+    tags: ["focus", "clarity"],    // optional
+    description: "Mental clarity"   // optional
+  },
   // Add more...
 ];
 ```
 
 - `name`: What the frequency is for.
-- `frequency`: A number; decimals allowed (e.g., 291.9).
-- The list auto-sorts by name and is searchable by name or frequency.
+- `frequency`: Number; decimals allowed (e.g., 291.9).
+- `category`: Optional string used by the Category filter.
+- `tags`: Optional array of short labels; used by search.
+- `description`: Optional short note; used by search.
+
+Search matches name, Hz, category, tags, and description. The list auto-sorts by name.
 
 ## How to use
 
-- Search: Use the top search box to filter list by condition or Hz.
+- Search: Use the top search box to filter by condition, Hz, tags, category, or description.
+- Category filter: Use the Category dropdown to narrow to a group.
+- Favorites: Toggle the ★ on any item. Use "Favorites only" to show starred items.
 - Play from list: Tap an item to auto-set and play that frequency.
 - Custom play: Enter any frequency in the Frequency (Hz) field and press Play.
 - Volume: Adjust with the slider.
+
+### Favorites persistence
+Favorites are remembered in your browser (localStorage). They will be preserved across reloads on the same device and browser.
 
 ## Install to Home Screen (iOS Safari)
 

@@ -19,11 +19,11 @@
       <img class="brand-icon" src="img/favicon.png" alt="" aria-hidden="true">
       <h1 class="brand-name">FrequencyDoctor</h1>
     </div>
-    <input id="search" class="search" type="search" placeholder="Search conditions or frequencies">
   </header>
 
   <main class="container">
     <section class="controls">
+      <input id="search" class="search" type="search" placeholder="Search conditions or frequencies">
       <div class="freq-input">
         <label for="freq">Frequency (Hz)</label>
         <div class="freq-row">
@@ -37,7 +37,15 @@
         <label for="volume">Volume</label>
         <input id="volume" type="range" min="0" max="100" value="20">
       </div>
-
+      <div class="filters">
+        <div class="filter-row">
+          <label for="category">Category</label>
+          <select id="category" class="select">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <label class="fav-toggle"><input id="onlyFavs" type="checkbox"> Favorites only</label>
+      </div>
       <div id="now-playing" class="now-playing">Idle</div>
     </section>
 

@@ -6,9 +6,30 @@
   var stopBtn=document.getElementById('stop');
   var vol=document.getElementById('volume');
   var nowPlaying=document.getElementById('now-playing');
+  var categorySel=document.getElementById('category');
+  var onlyFavs=document.getElementById('onlyFavs');
 
   var audioCtx=null,osc=null,gain=null,playing=false;
   var volumeVal=Number(vol.value)/100;
+  var DATA=[];
+
+  function itemId(x){
+    return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
+  }
+
+  function loadFavs(){
+    try{
+      var raw=localStorage.getItem('fd.favs');
+      if(!raw) return new Set();
+      var arr=JSON.parse(raw);
+      if(Array.isArray(arr)) return new Set(arr);
+    }catch(e){}
+    return new Set();
+  }
+  function saveFavs(set){
+    try{localStorage.setItem('fd.favs',JSON.stringify(Array.from(set)))}catch(e){}
+  }
+  var favs=loadFavs();
 
   function ensureAudio(){
     if(!audioCtx){
@@ -22,8 +43,38 @@
   function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
   function fmtHz(v){return Number(v).toFixed(2)+" Hz"}
 
+  function normalizeItems(data){
+    return (data||[]).map(function(x){
+      var y=Object.assign({},x);
+      y.category= y.category || 'General';
+      y.tags= Array.isArray(y.tags)? y.tags.slice(0,6) : [];
+      y.description = y.description || '';
+      y.id = itemId(y);
+      return y;
+    });
+  }
+
+  function buildCategories(items){
+    if(!categorySel) return;
+    var set=new Set();
+    items.forEach(function(x){ set.add(String(x.category||'General')); });
+    var cats=Array.from(set).sort();
+    var frag=document.createDocumentFragment();
+    var allOpt=document.createElement('option');
+    allOpt.value=''; allOpt.textContent='All categories';
+    frag.appendChild(allOpt);
+    cats.forEach(function(c){
+      var o=document.createElement('option');
+      o.value=c; o.textContent=c; frag.appendChild(o);
+    });
+    categorySel.replaceChildren(frag);
+  }
+
   function startTone(f){
     ensureAudio();
+    if(audioCtx && audioCtx.state==='suspended'){
+      try{audioCtx.resume()}catch(e){}
+    }
     stopTone(true);
     osc=audioCtx.createOscillator();
     osc.type='sine';
@@ -40,7 +91,8 @@
   }
 
   function stopTone(silent){
-    if(!osc)return;
+    var ref=osc;
+    if(!ref){ playing=false; updateUI(); return; }
     var now=audioCtx?audioCtx.currentTime:0;
     var rampOut=silent?0:0.05;
     if(gain&&audioCtx){
@@ -49,12 +101,11 @@
       gain.gain.setValueAtTime(v,now);
       gain.gain.linearRampToValueAtTime(0,now+rampOut);
     }
-    var ref=osc;osc=null;
-    setTimeout(function(){
-      try{ref.stop()}catch(e){}
-      try{ref.disconnect()}catch(e){}
-      playing=false;updateUI();
-    },(rampOut*1000)+8);
+    osc=null;
+    playing=false;
+    updateUI();
+    try{ ref.stop(now + rampOut + 0.001); }catch(e){}
+    try{ ref.disconnect(); }catch(e){}
   }
 
   function updateUI(){
@@ -88,13 +139,27 @@
 
   function renderList(filter){
     var q=(filter||'').trim().toLowerCase();
-    var items=(window.FREQUENCY_DATA||[]).slice().sort(function(a,b){
+    var items=DATA.slice().sort(function(a,b){
       return a.name.localeCompare(b.name);
     });
     if(q){
       items=items.filter(function(x){
-        return x.name.toLowerCase().includes(q)||String(x.frequency).includes(q);
+        var hay=[
+          String(x.name||'').toLowerCase(),
+          String(x.frequency),
+          String(x.category||'').toLowerCase(),
+          String(x.description||'').toLowerCase(),
+          (Array.isArray(x.tags)?x.tags.join(' '):'').toLowerCase()
+        ].join(' ');
+        return hay.includes(q);
       });
+    }
+    if(categorySel && categorySel.value){
+      var cv=categorySel.value.toLowerCase();
+      items=items.filter(function(x){return String(x.category||'').toLowerCase()===cv});
+    }
+    if(onlyFavs && onlyFavs.checked){
+      items=items.filter(function(x){return favs.has(x.id)});
     }
     var byLetter={};
     items.forEach(function(x){
@@ -120,19 +185,69 @@
         var wrap=document.createElement('div');
         wrap.className='items';
         byLetter[L].forEach(function(x){
-          var it=document.createElement('button');
+          var it=document.createElement('div');
           it.className='item';
-          it.type='button';
-          var name=document.createElement('span');
+          it.setAttribute('role','button');
+          it.tabIndex=0;
+
+          var left=document.createElement('div');
+          left.className='left';
+
+          var isFav=favs.has(x.id);
+          var star=document.createElement('button');
+          star.className='star'+(isFav?' active':'');
+          star.type='button';
+          star.setAttribute('aria-label','Favorite');
+          star.textContent='★';
+          star.addEventListener('click',function(ev){
+            ev.stopPropagation();
+            if(favs.has(x.id)) favs.delete(x.id); else favs.add(x.id);
+            saveFavs(favs);
+            renderList(search.value);
+          });
+
+          var text=document.createElement('div');
+          text.className='text';
+          var name=document.createElement('div');
           name.className='name';
           name.textContent=x.name;
+          text.appendChild(name);
+          if(x.description){
+            var desc=document.createElement('div');
+            desc.className='desc';
+            desc.textContent=x.description;
+            text.appendChild(desc);
+          }
+          if(Array.isArray(x.tags) && x.tags.length){
+            var tags=document.createElement('div');
+            tags.className='tags';
+            x.tags.forEach(function(t){
+              var tg=document.createElement('span');
+              tg.className='tag';
+              tg.textContent=t;
+              tags.appendChild(tg);
+            });
+            text.appendChild(tags);
+          }
+          left.appendChild(star);
+          left.appendChild(text);
+
           var hz=document.createElement('span');
           hz.className='hz';
           hz.textContent=fmtHz(x.frequency);
-          it.appendChild(name);it.appendChild(hz);
+
+          it.appendChild(left);
+          it.appendChild(hz);
           it.addEventListener('click',function(){
             freqInput.value=String(x.frequency);
             startTone(Number(x.frequency));
+          });
+          it.addEventListener('keydown',function(ev){
+            if(ev.key==='Enter' || ev.key===' '){
+              ev.preventDefault();
+              freqInput.value=String(x.frequency);
+              startTone(Number(x.frequency));
+            }
           });
           wrap.appendChild(it);
         });
@@ -144,11 +259,15 @@
   }
 
   search.addEventListener('input',function(){renderList(search.value)});
+  if(categorySel){categorySel.addEventListener('change',function(){renderList(search.value)})}
+  if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value)})}
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
   }
 
+  DATA = normalizeItems(window.FREQUENCY_DATA||[]);
+  buildCategories(DATA);
   renderList('');
   updateUI();
 })();
