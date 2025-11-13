@@ -42,6 +42,12 @@
 
   function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
   function fmtHz(v){return Number(v).toFixed(2)+" Hz"}
+  function hasSelection(){
+    try{
+      var s=window.getSelection&&window.getSelection();
+      return !!(s && s.toString());
+    }catch(e){return false}
+  }
 
   function normalizeItems(data){
     return (data||[]).map(function(x){
@@ -136,6 +142,16 @@
       nowPlaying.textContent='Playing '+fmtHz(f);
     }
   });
+  // Auto-select text on focus for quick overwrite
+  function autoSelect(el){
+    if(!el) return;
+    el.addEventListener('focus',function(){
+      try{ el.select(); }catch(e){}
+      try{ setTimeout(function(){ el.setSelectionRange(0, 99999); }, 0); }catch(e){}
+    });
+  }
+  autoSelect(freqInput);
+  autoSelect(search);
 
   function renderList(filter){
     var q=(filter||'').trim().toLowerCase();
@@ -238,7 +254,8 @@
 
           it.appendChild(left);
           it.appendChild(hz);
-          it.addEventListener('click',function(){
+          it.addEventListener('click',function(ev){
+            if(hasSelection()) return;
             freqInput.value=String(x.frequency);
             startTone(Number(x.frequency));
           });
