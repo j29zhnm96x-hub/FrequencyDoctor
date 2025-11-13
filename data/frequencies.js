@@ -14,5 +14,21 @@ window.FREQUENCY_DATA=[
   {name:"Insomnia",frequency:174,category:"Sleep",tags:["sleep"],description:"Ease into restful sleep."},
   {name:"Muscle Relaxation",frequency:285,category:"Recovery",tags:["relax"],description:"Release muscular tension."},
   {name:"Stress Relief",frequency:528,category:"Mood",tags:["calm","stress"],description:"Ease stress and unwind."},
-  {name:"Tinnitus Relief",frequency:432,category:"Ear",tags:["tinnitus"],description:"Soothing auditory support."}
+  {name:"Tinnitus Relief",frequency:432,category:"Ear",tags:["tinnitus"],description:"Soothing auditory support."},
+  {name:"Schumann Resonance",frequency:7.83,category:"Core",tags:["earth","schumann","grounding"],description:"Earth’s resonance for alignment and calm."},
+  {name:"Deep Sleep",frequency:3,category:"Brainwave",tags:["delta","sleep","rest"],description:"Deep sleep, anti-aging, access unconscious mind."},
+  {name:"Theta Meditation",frequency:6,category:"Brainwave",tags:["theta","meditation","creativity"],description:"Meditative, creative thinking, relaxed mind."},
+  {name:"Alpha Relaxation",frequency:9,category:"Brainwave",tags:["alpha","relaxation","learning"],description:"Relaxation, present awareness, learning ease."},
+  {name:"Beta Focus",frequency:15,category:"Brainwave",tags:["beta","focus","cognition"],description:"Focus, active thinking, cognition."},
+  {name:"Gamma Peak State",frequency:33,category:"Brainwave",tags:["gamma","peak","spiritual"],description:"High cognition and peak/spiritual states."},
+  {name:"Pain Relief",frequency:174,category:"Solfeggio",tags:["pain","relax"],description:"Pain relief, muscle tension release, grounding."},
+  {name:"Tissue Regeneration",frequency:285,category:"Solfeggio",tags:["healing","regeneration"],description:"Tissue regeneration, wound healing, immune support."},
+  {name:"Release Fear / Guilt",frequency:396,category:"Solfeggio",tags:["release","fear","guilt"],description:"Release of fear and guilt; root support."},
+  {name:"Facilitate Change",frequency:417,category:"Solfeggio",tags:["change","healing"],description:"Facilitates change; clears trauma and supports healing."},
+  {name:"Deep Relaxation (432)",frequency:432,category:"Solfeggio",tags:["relax","heart"],description:"Deep relaxation, heart resonance, emotional clarity."},
+  {name:"Miracle Tone (DNA Repair)",frequency:528,category:"Solfeggio",tags:["dna","transformation","positivity"],description:"DNA repair, transformation, positivity."},
+  {name:"Relationships & Communication",frequency:639,category:"Solfeggio",tags:["relationship","communication","heart"],description:"Relationship balance and open communication."},
+  {name:"Cleansing & Detox",frequency:741,category:"Solfeggio",tags:["cleansing","detox","expression"],description:"Cleansing, detoxing, self‑expression, intuition."},
+  {name:"Intuition & Awakening",frequency:852,category:"Solfeggio",tags:["intuition","awakening","clarity"],description:"Intuition, awakening, spiritual clarity."},
+  {name:"Higher Consciousness",frequency:963,category:"Solfeggio",tags:["higher","crown","oneness"],description:"Higher consciousness and crown activation."}
 ];

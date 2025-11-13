@@ -26,6 +26,8 @@ body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,
 .sliders{margin-top:.8rem}
 #volume{width:100%;appearance:none;height:6px;background:#0b1220;border:1px solid #334155;border-radius:999px}
 .now-playing{margin-top:.6rem;color:var(--muted);font-size:.9rem}
+.multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
+.sel-count{color:var(--muted);font-size:.9rem}
 .filters{margin-top:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
 .filter-row{display:flex;align-items:center;gap:.5rem}
 .select{appearance:none;background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:10px;padding:.5rem .7rem}
@@ -39,6 +41,7 @@ body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,
 .item:hover{border-color:#475569;background:#0b1525}
 .item:focus-visible{outline:2px solid #0ea5e9;outline-offset:2px}
 .item .left{display:flex;align-items:flex-start;gap:.6rem}
+.item .pick{width:18px;height:18px;accent-color:var(--brand);margin-top:.1rem}
 .item .star{border:1px solid #334155;background:#0b1220;color:#fbbf24;border-radius:8px;padding:.25rem .45rem;cursor:pointer;height:28px;min-width:28px}
 .item .star.active{background:#1f2937;border-color:#475569}
 .item .text{display:flex;flex-direction:column;gap:.2rem}
