@@ -34,13 +34,26 @@
       </div>
 
       <div class="multi-actions">
-        <button id="playSelected" class="btn">Play Selected</button>
         <span id="selCount" class="sel-count">Selected: 0</span>
+        <div class="multi-actions-right">
+          <button id="clearSelected" class="btn">Clear selections</button>
+          <button id="playSelected" class="btn">Play Selected</button>
+        </div>
       </div>
 
       <div class="sliders">
         <label for="volume">Volume</label>
         <input id="volume" type="range" min="0" max="100" value="20">
+      </div>
+      <div class="bgfx-controls">
+        <div class="bgfx-row">
+          <label for="bgLoopSelect">Background FX</label>
+          <select id="bgLoopSelect" class="select bgfx-select"></select>
+        </div>
+        <div class="bgfx-row">
+          <label for="bgLoopVolume">BG volume</label>
+          <input id="bgLoopVolume" type="range" min="0" max="100" value="40">
+        </div>
       </div>
       <div class="filters">
         <div class="filter-row">

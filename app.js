@@ -10,9 +10,16 @@
   var onlyFavs=document.getElementById('onlyFavs');
   var playSelectedBtn=document.getElementById('playSelected');
   var selCountEl=document.getElementById('selCount');
+  var clearSelectedBtn=document.getElementById('clearSelected');
+  var bgLoopSelect=document.getElementById('bgLoopSelect');
+  var bgLoopVolume=document.getElementById('bgLoopVolume');
 
   var audioCtx=null,osc=null,gain=null,playing=false;
   var volumeVal=Number(vol.value)/100;
+  var bgAudio=null; // legacy reference (unused in new loop path)
+  var bgGain=null, bgSource=null;
+  var bgBuffers=Object.create(null);
+  var bgVolumeVal=bgLoopVolume? Number(bgLoopVolume.value)/100 : 0.4;
   var DATA=[];
   var voices=[]; // active voices for multi-play
   var selected=new Set(); // selected item ids
@@ -46,6 +53,11 @@
       gain=audioCtx.createGain();
       gain.gain.value=0;
       gain.connect(audioCtx.destination);
+    }
+    if(audioCtx && !bgGain){
+      bgGain=audioCtx.createGain();
+      bgGain.gain.value=bgVolumeVal;
+      bgGain.connect(audioCtx.destination);
     }
   }
 
@@ -93,6 +105,136 @@
       o.value=c; o.textContent=c; frag.appendChild(o);
     });
     categorySel.replaceChildren(frag);
+  }
+
+  function stopBgLoop(){
+    try{
+      if(!audioCtx) return;
+      var now=audioCtx.currentTime;
+      if(bgGain){
+        bgGain.gain.cancelScheduledValues(now);
+        bgGain.gain.setTargetAtTime(0, now, 0.03);
+      }
+      if(bgSource){
+        try{ bgSource.stop(now + 0.05); }catch(e){}
+        try{ bgSource.disconnect(); }catch(e){}
+      }
+    }finally{
+      bgSource=null;
+    }
+  }
+
+  function loadBgBuffer(id){
+    if(!id) return Promise.reject(new Error('no-id'));
+    if(bgBuffers[id]) return Promise.resolve(bgBuffers[id]);
+    return fetch('audio/'+id).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+      ensureAudio();
+      return new Promise(function(resolve,reject){
+        audioCtx.decodeAudioData(ab, function(buf){ bgBuffers[id]=buf; resolve(buf); }, function(err){ reject(err); });
+      });
+    });
+  }
+
+  function computeLoopPoints(buffer){
+    try{
+      var sr=buffer.sampleRate, ch=buffer.numberOfChannels, len=buffer.length;
+      var start=0, end=len-1; var thresh=1e-3;
+      var maxScan=Math.min(len-1, Math.floor(sr*2));
+      
+      var sFound=false;
+      for(var i=0;i<maxScan;i++){
+        var above=false;
+        for(var c=0;c<ch;c++){
+          var d=buffer.getChannelData(c);
+          if(Math.abs(d[i])>thresh){ above=true; break; }
+        }
+        if(above){ start=i; sFound=true; break; }
+      }
+      if(!sFound) start=0;
+      
+      var eFound=false;
+      var minEnd=Math.max(start+1, len-1 - maxScan);
+      for(var j=len-1;j>=minEnd;j--){
+        var aboveE=false;
+        for(var c2=0;c2<ch;c2++){
+          var d2=buffer.getChannelData(c2);
+          if(Math.abs(d2[j])>thresh){ aboveE=true; break; }
+        }
+        if(aboveE){ end=j; eFound=true; break; }
+      }
+      if(!eFound) end=len-1;
+      
+      var margin=Math.floor(sr*0.002);
+      start=Math.max(0, start - margin);
+      end=Math.min(len, end + margin);
+      if(end <= start+10){ start=0; end=len; }
+
+      var win=Math.floor(sr*0.01);
+      var s0=Math.max(1, start - win), s1=Math.min(len-2, start + win);
+      var bestS=start, bestSA=1;
+      for(var si=s0; si<=s1; si++){
+        var acc=0;
+        for(var c3=0;c3<ch;c3++){ acc+=Math.abs(buffer.getChannelData(c3)[si]); }
+        acc/=Math.max(1,ch);
+        if(acc<bestSA){ bestSA=acc; bestS=si; if(acc===0) break; }
+      }
+      start=bestS;
+      var e0=Math.max(start+1, end - win), e1=Math.min(len-2, end + win);
+      var bestE=end, bestEA=1;
+      for(var ei=e0; ei<=e1; ei++){
+        var acc2=0;
+        for(var c4=0;c4<ch;c4++){ acc2+=Math.abs(buffer.getChannelData(c4)[ei]); }
+        acc2/=Math.max(1,ch);
+        if(acc2<bestEA){ bestEA=acc2; bestE=ei; if(acc2===0) break; }
+      }
+      end=bestE;
+      return {start:start/sr, end:end/sr};
+    }catch(e){
+      return {start:0, end:buffer.duration};
+    }
+  }
+
+  function startBgLoop(id){
+    stopBgLoop();
+    if(!id){ return; }
+    ensureAudio();
+    if(audioCtx && audioCtx.state==='suspended'){
+      try{ audioCtx.resume(); }catch(e){}
+    }
+    loadBgBuffer(id).then(function(buffer){
+      var points=computeLoopPoints(buffer);
+      var now=audioCtx.currentTime;
+      var src=audioCtx.createBufferSource();
+      src.buffer=buffer;
+      src.loop=true;
+      src.loopStart=points.start;
+      src.loopEnd=points.end;
+      src.connect(bgGain);
+      bgSource=src;
+      // gentle fade-in to avoid clicks
+      bgGain.gain.cancelScheduledValues(now);
+      bgGain.gain.setValueAtTime(Math.max(0,bgGain.gain.value), now);
+      bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.05);
+      src.start(now);
+    }).catch(function(){});
+  }
+
+  function initBgLoopOptions(){
+    if(!bgLoopSelect) return;
+    var options=[
+      {value:'', label:'No background'},
+      {value:'ambientalsynth.mp3', label:'Ambiental synth'},
+      {value:'birds.mp3', label:'Birds'},
+      {value:'rain_forest.mp3', label:'Rain forest'}
+    ];
+    var frag=document.createDocumentFragment();
+    options.forEach(function(opt){
+      var o=document.createElement('option');
+      o.value=opt.value;
+      o.textContent=opt.label;
+      frag.appendChild(o);
+    });
+    bgLoopSelect.replaceChildren(frag);
   }
 
   function startTone(f){
@@ -207,6 +349,16 @@
       gain.gain.setTargetAtTime(volumeVal,now,0.02);
     }
   });
+  if(bgLoopVolume){
+    bgLoopVolume.addEventListener('input',function(){
+      bgVolumeVal=Number(bgLoopVolume.value)/100;
+      if(bgGain && audioCtx){
+        var now=audioCtx.currentTime;
+        bgGain.gain.cancelScheduledValues(now);
+        bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.03);
+      }
+    });
+  }
   freqInput.addEventListener('input',function(){
     if(playing && osc && audioCtx){
       var f=clamp(Number(freqInput.value)||0,0.1,20000);
@@ -229,6 +381,23 @@
     playSelectedBtn.addEventListener('click',function(){
       var items=DATA.filter(function(x){return selected.has(x.id)});
       if(items.length){ startMulti(items,0.02); }
+    });
+  }
+
+  if(clearSelectedBtn){
+    clearSelectedBtn.addEventListener('click',function(){
+      selected.clear();
+      var picks=listEl.querySelectorAll('.pick');
+      picks.forEach(function(p){ p.checked=false; });
+      stopAllVoices(true);
+      updateSelUI();
+    });
+  }
+
+  if(bgLoopSelect){
+    initBgLoopOptions();
+    bgLoopSelect.addEventListener('change',function(){
+      startBgLoop(bgLoopSelect.value);
     });
   }
 
