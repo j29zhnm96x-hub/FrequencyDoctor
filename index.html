@@ -16,16 +16,13 @@
 <body>
   <header class="app-header">
     <div class="brand">
-      <img class="brand-icon" src="img/favicon.png" alt="" aria-hidden="true">
       <h1 class="brand-name">FrequencyDoctor</h1>
     </div>
     <div class="header-actions">
-      <button id="helpBtn" class="icon-btn" aria-label="Help" title="Help">
-        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 15a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Zm0-10c-2.1 0-3.5 1.2-3.5 2.9h2.1c0-.7.6-1.2 1.4-1.2.8 0 1.4.4 1.4 1.1 0 .6-.3.9-1 1.3-.3.2-.6.3-.8.5-.9.6-1.2 1.2-1.2 2.2v.3h2.1v-.2c0-.5.1-.7.9-1.2.2-.1.5-.3.8-.5 1-.6 1.6-1.4 1.6-2.6C14.8 8 13.7 7 12 7Z"/></svg>
-      </button>
       <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">
         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.05-.5.1-1 .1-1.5s-.05-1-.1-1.5l2-1.5a.7.7 0 0 0 .15-.9l-1.9-3.3a.7.7 0 0 0-.85-.3l-2.3 1a7.3 7.3 0 0 0-2.6-1.5l-.35-2.5A.7.7 0 0 0 12 1h-4a.7.7 0 0 0-.7.6l-.35 2.5a7.3 7.3 0 0 0-2.6 1.5l-2.3-1a.7.7 0 0 0-.85.3L.3 8.2a.7.7 0 0 0 .15.9l2 1.5c-.05.5-.1 1-.1 1.5s.05 1 .1 1.5l-2 1.5a.7.7 0 0 0-.15.9l1.9 3.3c.2.3.53.44.85.3l2.3-1c.75.62 1.63 1.15 2.6 1.5l.35 2.5c.05.34.35.6.7.6h4c.35 0 .65-.26.7-.6l.35-2.5c.97-.35 1.85-.88 2.6-1.5l2.3 1c.32.14.65 0 .85-.3l1.9-3.3a.7.7 0 0 0-.15-.9l-2-1.5ZM10 15a3 3 0 1 1 4 0 3 3 0 0 1-4 0Z"/></svg>
       </button>
+      <button id="helpBtn" class="icon-btn text" aria-label="Help" title="Help">?</button>
     </div>
   </header>
 
@@ -52,6 +49,56 @@
     </div>
   </div>
 
+  <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" hidden>
+    <div class="modal-overlay" data-close="1"></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="helpTitle">Help</h2>
+        <button id="helpClose" class="icon-btn" aria-label="Close help"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6.2 6.2 18 18m0-11.8L6.2 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>This app is designed for relaxation and well-being support. It is not a medical device. The sounds are meant to harmonize body and mind while remembering that ultimate healing comes from reconnecting with the Supreme Source.</strong></p>
+        <h3>What is FrequencyDoctor?</h3>
+        <p>FrequencyDoctor plays precise pure tones with optional background soundscapes to encourage relaxation, focus, sleep preparation, and emotional balance. You can browse named uses, mark favorites, and layer multiple tones with smart stereo placement.</p>
+        <h3>Why sound can help</h3>
+        <ul>
+          <li><b>Auditory entrainment:</b> Regular, steady tones can promote calmer rhythmic activity in the brain and autonomic system, supporting relaxation and focus.</li>
+          <li><b>Attention and masking:</b> Gentle sound can shift attention away from stressors or internal noise, offering relief for some individuals.</li>
+          <li><b>State priming and ritual:</b> Consistent soundscapes act as cues that facilitate meditation, deep work, or sleep onset.</li>
+        </ul>
+        <h3>What the research suggests (high level)</h3>
+        <ul>
+          <li><b>Music therapy:</b> Multiple reviews report benefits for stress, mood, and pain in selected settings; effect sizes vary by protocol and individual.</li>
+          <li><b>Binaural/steady tones:</b> Controlled studies and meta-analyses have found small-to-moderate improvements in anxiety, relaxation, and sleep for some users; findings are mixed and method-dependent.</li>
+          <li><b>Tinnitus and sound therapy:</b> Sound-based approaches can reduce symptom burden for a subset of people, though outcomes differ widely and are not guaranteed.</li>
+        </ul>
+        <p>Overall, evidence is evolving. Results are individualized; use this as a supportive practice alongside healthy habits and professional care when needed.</p>
+        <h3>How to use</h3>
+        <ul>
+          <li>Search or browse, then tap a frequency to play. Start with modest volume.</li>
+          <li>Select multiple items and press <b>Play Selected</b> to layer tones with stereo spread.</li>
+          <li>Add a <b>Background FX</b> loop if desired for comfort and immersion.</li>
+          <li>Experiment and note which combinations and durations feel best for you.</li>
+        </ul>
+        <h3>Safety</h3>
+        <ul>
+          <li>Keep volume conservative; take breaks to protect hearing.</li>
+          <li>Do not use while driving or whenever full attention is required.</li>
+          <li>If symptoms persist or worsen, consult a qualified clinician.</li>
+        </ul>
+        <h3>Selected reading</h3>
+        <ul>
+          <li>Bradt J, Dileo C, et al. Cochrane reviews on music interventions for anxiety and medical procedures.</li>
+          <li>Chanda ML, Levitin DJ. The neurochemistry of music and its effects on mood and stress (2013).</li>
+          <li>García-Argibay S, Santed MA, Reales JM. Meta-analytic work on binaural beats and outcomes like anxiety/sleep (2019).</li>
+          <li>Hoare DJ, et al. Reviews on sound therapy approaches for tinnitus; outcomes vary by individual.</li>
+        </ul>
+      </div>
+      <div class="modal-foot">
+        <button id="helpCloseBtn" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
   <main class="container">
     <section class="controls">
       <input id="search" class="search" type="search" placeholder="Search conditions or frequencies">

@@ -14,6 +14,11 @@
   var bgLoopSelect=document.getElementById('bgLoopSelect');
   var bgLoopVolume=document.getElementById('bgLoopVolume');
   var audioOut=document.getElementById('audioOut');
+  // Help elements
+  var helpBtn=document.getElementById('helpBtn');
+  var helpModal=document.getElementById('helpModal');
+  var helpClose=document.getElementById('helpClose');
+  var helpCloseBtn=document.getElementById('helpCloseBtn');
   // Settings elements
   var settingsBtn=document.getElementById('settingsBtn');
   var settingsModal=document.getElementById('settingsModal');
@@ -65,6 +70,9 @@
     if(selCountEl){ selCountEl.textContent='Selected: '+selected.size; }
     if(playSelectedBtn){ playSelectedBtn.disabled = selected.size===0; }
   }
+
+  function openHelp(){ if(helpModal) helpModal.hidden=false; }
+  function closeHelp(){ if(helpModal) helpModal.hidden=true; }
 
   function loadFavs(){
     try{
@@ -467,6 +475,15 @@
     });
   }
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeSettings(); });
+
+  // Help modal wiring
+  if(helpBtn){ helpBtn.addEventListener('click', openHelp); }
+  if(helpClose){ helpClose.addEventListener('click', closeHelp); }
+  if(helpCloseBtn){ helpCloseBtn.addEventListener('click', closeHelp); }
+  if(helpModal){
+    helpModal.addEventListener('click', function(ev){ var t=ev.target; if(t && t.getAttribute && t.getAttribute('data-close')) closeHelp(); });
+  }
+  document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeHelp(); });
 
   if(clearSelectedBtn){
     clearSelectedBtn.addEventListener('click',function(){
