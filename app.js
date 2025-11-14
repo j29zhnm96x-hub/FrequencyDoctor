@@ -13,8 +13,10 @@
   var clearSelectedBtn=document.getElementById('clearSelected');
   var bgLoopSelect=document.getElementById('bgLoopSelect');
   var bgLoopVolume=document.getElementById('bgLoopVolume');
+  var keepAwakeToggle=document.getElementById('keepAwake');
 
   var audioCtx=null,osc=null,gain=null,playing=false;
+  var mediaDest=null,outEl=null; // background/lock playback via Audio element
   var volumeVal=Number(vol.value)/100;
   var bgAudio=null; // legacy reference (unused in new loop path)
   var bgGain=null, bgSource=null;
@@ -52,7 +54,38 @@
       audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       gain=audioCtx.createGain();
       gain.gain.value=0;
-      gain.connect(audioCtx.destination);
+      // Route to MediaStream -> HTMLAudio for iOS background/lock playback
+      try{
+        mediaDest=audioCtx.createMediaStreamDestination();
+        gain.connect(mediaDest);
+        outEl=document.getElementById('fd-audio-out');
+        if(!outEl){
+          outEl=document.createElement('audio');
+          outEl.id='fd-audio-out';
+          outEl.setAttribute('playsinline','');
+          outEl.style.display='none';
+          document.body.appendChild(outEl);
+        }
+        outEl.srcObject=mediaDest.stream;
+        var playOut=function(){ try{ outEl.play().catch(function(){}) }catch(e){} };
+        playOut();
+        document.addEventListener('visibilitychange',function(){
+          if(document.visibilityState!=='visible'){ playOut(); }
+          if(audioCtx && audioCtx.state==='suspended'){
+            try{audioCtx.resume()}catch(e){}
+          }
+        });
+        if('mediaSession' in navigator){
+          try{
+            navigator.mediaSession.metadata=new MediaMetadata({
+              title:'FrequencyDoctor', artist:'', album:'',
+              artwork:[{src:'img/favicon.png',sizes:'512x512',type:'image/png'}]
+            });
+            navigator.mediaSession.setActionHandler('play',function(){ playOut(); if(audioCtx&&audioCtx.state==='suspended'){audioCtx.resume()} });
+            navigator.mediaSession.setActionHandler('pause',function(){ stopAllVoices(false); try{outEl.pause()}catch(e){} });
+          }catch(e){}
+        }
+      }catch(e){}
     }
     if(audioCtx && !bgGain){
       bgGain=audioCtx.createGain();
@@ -323,8 +356,8 @@
   function updateUI(){
     var f=Number(freqInput.value)||0;
     if(voices.length>1){
-      var names=voices.map(function(v){return v.meta&&v.meta.name? v.meta.name : fmtHz(v.meta.frequency)});
-      nowPlaying.textContent='Playing '+voices.length+' tones';
+      var labels=voices.map(function(v){ return fmtHz(v.meta.frequency); });
+      nowPlaying.textContent='Playing '+labels.join(', ');
     }else if(voices.length===1){
       nowPlaying.textContent='Playing '+fmtHz(voices[0].meta.frequency);
     }else{
@@ -383,6 +416,8 @@
       if(items.length){ startMulti(items,0.02); }
     });
   }
+  var clearSel=document.getElementById('clearSel');
+  if(clearSel){ clearSel.addEventListener('click',function(){ selected.clear(); updateSelUI(); renderList(search.value); }); }
 
   if(clearSelectedBtn){
     clearSelectedBtn.addEventListener('click',function(){
@@ -537,6 +572,69 @@
   search.addEventListener('input',function(){renderList(search.value)});
   if(categorySel){categorySel.addEventListener('change',function(){renderList(search.value)})}
   if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value)})}
+
+  // Settings & Help modals and Theme
+  function show(el){ el.classList.remove('hidden'); }
+  function hide(el){ el.classList.add('hidden'); }
+  var backdrop=document.getElementById('modalBackdrop');
+  var settingsModal=document.getElementById('settingsModal');
+  var helpModal=document.getElementById('helpModal');
+  function openModal(m){ if(backdrop) show(backdrop); if(m) show(m); }
+  function closeModal(m){ if(m) hide(m); if(backdrop) hide(backdrop); }
+  var helpBtn=document.getElementById('helpBtn');
+  var settingsBtn=document.getElementById('settingsBtn');
+  var closeHelp=document.getElementById('closeHelp');
+  var closeSettings=document.getElementById('closeSettings');
+  if(helpBtn) helpBtn.addEventListener('click',function(){ openModal(helpModal); });
+  if(settingsBtn) settingsBtn.addEventListener('click',function(){ openModal(settingsModal); });
+  if(closeHelp) closeHelp.addEventListener('click',function(){ closeModal(helpModal); });
+  if(closeSettings) closeSettings.addEventListener('click',function(){ closeModal(settingsModal); });
+  if(backdrop) backdrop.addEventListener('click',function(){ closeModal(settingsModal); closeModal(helpModal); });
+
+  function getTheme(){ try{ return localStorage.getItem('fd.theme')||'system'; }catch(e){ return 'system'; } }
+  function setTheme(v){ try{ localStorage.setItem('fd.theme',v); }catch(e){} applyTheme(v); }
+  function applyTheme(v){
+    var root=document.documentElement;
+    root.classList.remove('theme-light','theme-dark','theme-system');
+    var val=(v||'system');
+    if(val==='light') root.classList.add('theme-light');
+    else if(val==='dark') root.classList.add('theme-dark');
+    else root.classList.add('theme-system');
+  }
+  // Init theme radios
+  (function(){
+    var radios=document.querySelectorAll('input[name="theme"]');
+    var current=getTheme();
+    applyTheme(current);
+    radios.forEach(function(r){ r.checked=(r.value===current); r.addEventListener('change',function(){ if(r.checked) setTheme(r.value); }); });
+  })();
+
+  // Wake Lock (keep screen awake)
+  var wakeLock=null;
+  async function requestWake(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release',function(){
+          if(keepAwakeToggle && keepAwakeToggle.checked){ requestWake(); }
+        });
+      }
+    }catch(e){}
+  }
+  function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){}
+  function getKeepAwake(){ try{ return localStorage.getItem('fd.keepAwake')==='1'; }catch(e){ return false; } }
+  function setKeepAwake(v){ try{ localStorage.setItem('fd.keepAwake', v?'1':'0'); }catch(e){} }
+  if(keepAwakeToggle){
+    keepAwakeToggle.checked = getKeepAwake();
+    keepAwakeToggle.addEventListener('change',function(){
+      setKeepAwake(keepAwakeToggle.checked);
+      if(keepAwakeToggle.checked) requestWake(); else releaseWake();
+    });
+    if(keepAwakeToggle.checked) requestWake();
+  }
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible' && keepAwakeToggle && keepAwakeToggle.checked){ requestWake(); }
+  });
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
