@@ -1,4 +1,4 @@
-const CACHENAME='fd-v15';
+const CACHENAME='fd-v16';
 const ASSETS=[
   '/',
   '/index.html',

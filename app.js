@@ -18,6 +18,7 @@
   var timerCustomWrap=document.getElementById('timerCustomWrap');
   var timerHrs=document.getElementById('timerHrs');
   var timerMin=document.getElementById('timerMin');
+  var timerCountdown=document.getElementById('timerCountdown');
   // Help elements
   var helpBtn=document.getElementById('helpBtn');
   var helpModal=document.getElementById('helpModal');
@@ -148,8 +149,38 @@
     }
     return 0;
   }
-  var sleepTimeout=null, sleepDeadline=0;
-  function clearSleepTimer(){ if(sleepTimeout){ try{clearTimeout(sleepTimeout)}catch(e){} sleepTimeout=null; } sleepDeadline=0; }
+  var sleepTimeout=null, sleepDeadline=0, countdownInterval=null;
+  function stopCountdownDisplay(){
+    if(countdownInterval){ try{clearInterval(countdownInterval)}catch(e){} countdownInterval=null; }
+    if(timerCountdown){ timerCountdown.hidden=true; timerCountdown.textContent='00:00:00'; }
+  }
+  function formatClock(ms){
+    ms=Math.max(0, Math.floor(ms));
+    var totalSec=Math.floor(ms/1000);
+    var h=Math.floor(totalSec/3600);
+    var m=Math.floor((totalSec%3600)/60);
+    var s=totalSec%60;
+    var hh=(h<10?'0':'')+h;
+    var mm=(m<10?'0':'')+m;
+    var ss=(s<10?'0':'')+s;
+    return hh+":"+mm+":"+ss;
+  }
+  function ensureCountdownRunning(){
+    if(!timerCountdown){ return; }
+    if(playing && sleepDeadline>0){
+      timerCountdown.hidden=false;
+      timerCountdown.textContent=formatClock(sleepDeadline - Date.now());
+      if(!countdownInterval){
+        countdownInterval=setInterval(function(){
+          if(!(playing && sleepDeadline>0)){ stopCountdownDisplay(); return; }
+          timerCountdown.textContent=formatClock(sleepDeadline - Date.now());
+        }, 500);
+      }
+    } else {
+      stopCountdownDisplay();
+    }
+  }
+  function clearSleepTimer(){ if(sleepTimeout){ try{clearTimeout(sleepTimeout)}catch(e){} sleepTimeout=null; } sleepDeadline=0; stopCountdownDisplay(); }
   function getSelectedTimerMs(){
     if(!sleepTimerSel) return 0;
     var v=sleepTimerSel.value||'';
@@ -170,7 +201,8 @@
     if(ms>0){
       sleepDeadline=Date.now()+ms;
       sleepTimeout=setTimeout(function(){ sleepTimeout=null; sleepDeadline=0; try{stopAllVoices(false)}catch(e){} try{stopBgLoop()}catch(e){} }, ms);
-    }
+      ensureCountdownRunning();
+    } else { stopCountdownDisplay(); }
   }
 
   function normalizeItems(data){
