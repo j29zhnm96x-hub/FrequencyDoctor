@@ -122,7 +122,10 @@
             <option value="8h">8h</option>
             <option value="custom">Custom…</option>
           </select>
-          <input id="timerCustom" class="timer-input" type="text" placeholder="e.g. 90m or 1:30" hidden>
+          <div id="timerCustomWrap" class="timer-custom" hidden>
+            <select id="timerHrs" class="select" aria-label="Hours"></select>
+            <select id="timerMin" class="select" aria-label="Minutes"></select>
+          </div>
         </div>
       </div>
 

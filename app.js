@@ -15,7 +15,9 @@
   var bgLoopVolume=document.getElementById('bgLoopVolume');
   var audioOut=document.getElementById('audioOut');
   var sleepTimerSel=document.getElementById('sleepTimer');
-  var timerCustom=document.getElementById('timerCustom');
+  var timerCustomWrap=document.getElementById('timerCustomWrap');
+  var timerHrs=document.getElementById('timerHrs');
+  var timerMin=document.getElementById('timerMin');
   // Help elements
   var helpBtn=document.getElementById('helpBtn');
   var helpModal=document.getElementById('helpModal');
@@ -152,7 +154,14 @@
     if(!sleepTimerSel) return 0;
     var v=sleepTimerSel.value||'';
     if(!v) return 0;
-    if(v==='custom'){ return parseDurationMs(timerCustom?timerCustom.value:''); }
+    if(v==='custom'){
+      var h = timerHrs? parseInt(timerHrs.value||'0',10) : 0;
+      var m = timerMin? parseInt(timerMin.value||'0',10) : 0;
+      if(isNaN(h)) h=0; if(isNaN(m)) m=0;
+      h = Math.max(0, Math.min(23, h));
+      m = Math.max(0, Math.min(59, m));
+      return ((h*60)+m)*60*1000;
+    }
     return parseDurationMs(v);
   }
   function scheduleSleepTimerFromUI(){
@@ -460,16 +469,34 @@
       gain.gain.setTargetAtTime(volumeVal,now,0.02);
     }
   });
+  function initTimerHMS(){
+    if(timerHrs && timerHrs.options.length===0){
+      var f=document.createDocumentFragment();
+      for(var h=0; h<=23; h++){
+        var o=document.createElement('option'); o.value=String(h); o.textContent=(h<10?'0':'')+h; f.appendChild(o);
+      }
+      timerHrs.appendChild(f);
+    }
+    if(timerMin && timerMin.options.length===0){
+      var f2=document.createDocumentFragment();
+      for(var m=0; m<=59; m++){
+        var o2=document.createElement('option'); o2.value=String(m); o2.textContent=(m<10?'0':'')+m; f2.appendChild(o2);
+      }
+      timerMin.appendChild(f2);
+    }
+  }
   if(sleepTimerSel){
     sleepTimerSel.addEventListener('change', function(){
-      if(timerCustom){ timerCustom.hidden = sleepTimerSel.value !== 'custom'; }
+      var show = sleepTimerSel.value === 'custom';
+      if(timerCustomWrap){
+        timerCustomWrap.hidden = !show;
+        if(show){ initTimerHMS(); if(timerHrs && timerHrs.value===''){ timerHrs.value='0'; } if(timerMin && timerMin.value===''){ timerMin.value='30'; } }
+      }
       if(playing){ scheduleSleepTimerFromUI(); }
     });
   }
-  if(timerCustom){
-    timerCustom.addEventListener('blur', function(){ if(sleepTimerSel && sleepTimerSel.value==='custom' && playing){ scheduleSleepTimerFromUI(); } });
-    timerCustom.addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); if(sleepTimerSel && sleepTimerSel.value==='custom' && playing){ scheduleSleepTimerFromUI(); } } });
-  }
+  if(timerHrs){ timerHrs.addEventListener('change', function(){ if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
+  if(timerMin){ timerMin.addEventListener('change', function(){ if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
   if(bgLoopVolume){
     bgLoopVolume.addEventListener('input',function(){
       bgVolumeVal=Number(bgLoopVolume.value)/100;
