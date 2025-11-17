@@ -108,14 +108,29 @@
           <input id="freq" type="number" min="0.1" max="20000" step="0.01" value="432">
           <button id="play" class="btn primary">Play</button>
           <button id="stop" class="btn" disabled>Stop</button>
+          <select id="sleepTimer" class="select timer-select" aria-label="Sleep timer">
+            <option value="">Timer: Off</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="45m">45m</option>
+            <option value="1h">1h</option>
+            <option value="1.5h">1,5h</option>
+            <option value="2h">2h</option>
+            <option value="3h">3h</option>
+            <option value="4h">4h</option>
+            <option value="6h">6h</option>
+            <option value="8h">8h</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <input id="timerCustom" class="timer-input" type="text" placeholder="e.g. 90m or 1:30" hidden>
         </div>
       </div>
 
       <div class="multi-actions">
         <span id="selCount" class="sel-count">Selected: 0</span>
         <div class="multi-actions-right">
-          <button id="clearSelected" class="btn">Clear selections</button>
-          <button id="playSelected" class="btn">Play Selected</button>
+          <button id="clearSelected" class="btn sm">Clear selections</button>
+          <button id="playSelected" class="btn sm">Play Selected</button>
         </div>
       </div>
 

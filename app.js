@@ -14,6 +14,8 @@
   var bgLoopSelect=document.getElementById('bgLoopSelect');
   var bgLoopVolume=document.getElementById('bgLoopVolume');
   var audioOut=document.getElementById('audioOut');
+  var sleepTimerSel=document.getElementById('sleepTimer');
+  var timerCustom=document.getElementById('timerCustom');
   // Help elements
   var helpBtn=document.getElementById('helpBtn');
   var helpModal=document.getElementById('helpModal');
@@ -123,6 +125,43 @@
       var s=window.getSelection&&window.getSelection();
       return !!(s && s.toString());
     }catch(e){return false}
+  }
+  function parseDurationMs(raw){
+    if(!raw) return 0;
+    var s=String(raw).trim().toLowerCase().replace(',', '.').replace(/\s+/g,'');
+    if(!s) return 0;
+    if(/^\d+:\d{1,2}(:\d{1,2})?$/.test(s)){
+      var parts=s.split(':').map(function(x){return Number(x)});
+      var ms=0;
+      if(parts.length===2){ var h=parts[0], m=parts[1]; if(isNaN(h)||isNaN(m)) return 0; ms=((h*60)+m)*60*1000; }
+      else { var h2=parts[0], m2=parts[1], sec=parts[2]; if([h2,m2,sec].some(function(v){return isNaN(v)})) return 0; ms=(((h2*60)+m2)*60 + sec)*1000; }
+      return ms>0?ms:0;
+    }
+    var m=s.match(/^([0-9]*\.?[0-9]+)(h|m|s)?$/);
+    if(m){
+      var val=parseFloat(m[1]); var unit=m[2]||'m'; if(isNaN(val)) return 0;
+      if(unit==='h') return Math.max(0, val*3600000);
+      if(unit==='m') return Math.max(0, val*60000);
+      if(unit==='s') return Math.max(0, val*1000);
+    }
+    return 0;
+  }
+  var sleepTimeout=null, sleepDeadline=0;
+  function clearSleepTimer(){ if(sleepTimeout){ try{clearTimeout(sleepTimeout)}catch(e){} sleepTimeout=null; } sleepDeadline=0; }
+  function getSelectedTimerMs(){
+    if(!sleepTimerSel) return 0;
+    var v=sleepTimerSel.value||'';
+    if(!v) return 0;
+    if(v==='custom'){ return parseDurationMs(timerCustom?timerCustom.value:''); }
+    return parseDurationMs(v);
+  }
+  function scheduleSleepTimerFromUI(){
+    clearSleepTimer();
+    var ms=getSelectedTimerMs();
+    if(ms>0){
+      sleepDeadline=Date.now()+ms;
+      sleepTimeout=setTimeout(function(){ sleepTimeout=null; sleepDeadline=0; try{stopAllVoices(false)}catch(e){} try{stopBgLoop()}catch(e){} }, ms);
+    }
   }
 
   function normalizeItems(data){
@@ -387,6 +426,7 @@
     });
     playing=false;
     updateUI();
+    clearSleepTimer();
   }
 
   function updateUI(){
@@ -409,8 +449,9 @@
     freqInput.value=String(f);
     startOutputIfNeeded();
     startTone(f);
+    scheduleSleepTimerFromUI();
   });
-  stopBtn.addEventListener('click',function(){stopTone(false)});
+  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); });
   vol.addEventListener('input',function(){
     volumeVal=Number(vol.value)/100;
     if(gain && audioCtx){
@@ -419,6 +460,16 @@
       gain.gain.setTargetAtTime(volumeVal,now,0.02);
     }
   });
+  if(sleepTimerSel){
+    sleepTimerSel.addEventListener('change', function(){
+      if(timerCustom){ timerCustom.hidden = sleepTimerSel.value !== 'custom'; }
+      if(playing){ scheduleSleepTimerFromUI(); }
+    });
+  }
+  if(timerCustom){
+    timerCustom.addEventListener('blur', function(){ if(sleepTimerSel && sleepTimerSel.value==='custom' && playing){ scheduleSleepTimerFromUI(); } });
+    timerCustom.addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); if(sleepTimerSel && sleepTimerSel.value==='custom' && playing){ scheduleSleepTimerFromUI(); } } });
+  }
   if(bgLoopVolume){
     bgLoopVolume.addEventListener('input',function(){
       bgVolumeVal=Number(bgLoopVolume.value)/100;
@@ -450,7 +501,7 @@
   if(playSelectedBtn){
     playSelectedBtn.addEventListener('click',function(){
       var items=DATA.filter(function(x){return selected.has(x.id)});
-      if(items.length){ startOutputIfNeeded(); startMulti(items,0.02); }
+      if(items.length){ startOutputIfNeeded(); startMulti(items,0.02); scheduleSleepTimerFromUI(); }
     });
   }
   if(clearSelectedBtn){
