@@ -1,5 +1,6 @@
 (function(){
   var search=document.getElementById('search');
+  var searchClear=document.getElementById('searchClear');
   var listEl=document.getElementById('list');
   var freqInput=document.getElementById('freq');
   var playBtn=document.getElementById('play');
@@ -123,6 +124,7 @@
       if(p && p.catch){ p.catch(function(){}) }
     }catch(e){}
   }
+  function updateSearchClear(){ if(searchClear){ searchClear.style.display = (search && search.value)? 'inline-flex' : 'none'; } }
   function hasSelection(){
     try{
       var s=window.getSelection&&window.getSelection();
@@ -149,7 +151,26 @@
     }
     return 0;
   }
-  var sleepTimeout=null, sleepDeadline=0, countdownInterval=null;
+  var sleepTimeout=null, sleepDeadline=0, countdownInterval=null, preFadeTimeout=null;
+  function clearFadeSchedule(){ if(preFadeTimeout){ try{clearTimeout(preFadeTimeout)}catch(e){} preFadeTimeout=null; } }
+  function startVolumeFade(seconds){
+    try{
+      if(!gain || !audioCtx) return;
+      var now=audioCtx.currentTime;
+      var current=gain.gain.value;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(current, now);
+      gain.gain.linearRampToValueAtTime(0, now + Math.max(0.001, seconds));
+    }catch(e){}
+  }
+  function restoreMasterVolume(){
+    try{
+      if(!gain || !audioCtx) return;
+      var now=audioCtx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setTargetAtTime(volumeVal, now, 0.03);
+    }catch(e){}
+  }
   function stopCountdownDisplay(){
     if(countdownInterval){ try{clearInterval(countdownInterval)}catch(e){} countdownInterval=null; }
     if(timerCountdown){ timerCountdown.hidden=true; timerCountdown.textContent='00:00:00'; }
@@ -180,7 +201,7 @@
       stopCountdownDisplay();
     }
   }
-  function clearSleepTimer(){ if(sleepTimeout){ try{clearTimeout(sleepTimeout)}catch(e){} sleepTimeout=null; } sleepDeadline=0; stopCountdownDisplay(); }
+  function clearSleepTimer(){ if(sleepTimeout){ try{clearTimeout(sleepTimeout)}catch(e){} sleepTimeout=null; } sleepDeadline=0; stopCountdownDisplay(); clearFadeSchedule(); }
   function getSelectedTimerMs(){
     if(!sleepTimerSel) return 0;
     var v=sleepTimerSel.value||'';
@@ -195,14 +216,32 @@
     }
     return parseDurationMs(v);
   }
+  function updateTimerPreview(){
+    if(!timerCountdown) return;
+    var ms=getSelectedTimerMs();
+    if(ms>0){ timerCountdown.hidden=false; timerCountdown.textContent=formatClock(ms); }
+    else { timerCountdown.hidden=true; }
+  }
   function scheduleSleepTimerFromUI(){
     clearSleepTimer();
     var ms=getSelectedTimerMs();
     if(ms>0){
       sleepDeadline=Date.now()+ms;
-      sleepTimeout=setTimeout(function(){ sleepTimeout=null; sleepDeadline=0; try{stopAllVoices(false)}catch(e){} try{stopBgLoop()}catch(e){} }, ms);
+      sleepTimeout=setTimeout(function(){ sleepTimeout=null; sleepDeadline=0; try{stopAllVoices(false)}catch(e){} try{stopBgLoop()}catch(e){} resetTimerUI(); restoreMasterVolume(); }, ms);
+      var fadeSec=Math.min(10, ms/1000);
+      var pre=Math.max(0, ms - Math.floor(fadeSec*1000));
+      preFadeTimeout=setTimeout(function(){ startVolumeFade(fadeSec); }, pre);
       ensureCountdownRunning();
     } else { stopCountdownDisplay(); }
+  }
+  function resetTimerUI(){
+    try{
+      if(sleepTimerSel){ sleepTimerSel.value=''; }
+      if(timerCustomWrap){ timerCustomWrap.hidden=true; }
+      if(timerHrs){ timerHrs.value='0'; }
+      if(timerMin){ timerMin.value='0'; }
+      stopCountdownDisplay();
+    }catch(e){}
   }
 
   function normalizeItems(data){
@@ -492,7 +531,7 @@
     startTone(f);
     scheduleSleepTimerFromUI();
   });
-  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); });
+  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); resetTimerUI(); restoreMasterVolume(); });
   vol.addEventListener('input',function(){
     volumeVal=Number(vol.value)/100;
     if(gain && audioCtx){
@@ -524,11 +563,12 @@
         timerCustomWrap.hidden = !show;
         if(show){ initTimerHMS(); if(timerHrs && timerHrs.value===''){ timerHrs.value='0'; } if(timerMin && timerMin.value===''){ timerMin.value='30'; } }
       }
+      updateTimerPreview();
       if(playing){ scheduleSleepTimerFromUI(); }
     });
   }
-  if(timerHrs){ timerHrs.addEventListener('change', function(){ if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
-  if(timerMin){ timerMin.addEventListener('change', function(){ if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
+  if(timerHrs){ timerHrs.addEventListener('change', function(){ updateTimerPreview(); if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
+  if(timerMin){ timerMin.addEventListener('change', function(){ updateTimerPreview(); if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
   if(bgLoopVolume){
     bgLoopVolume.addEventListener('input',function(){
       bgVolumeVal=Number(bgLoopVolume.value)/100;
@@ -745,7 +785,8 @@
     listEl.replaceChildren(frag);
   }
 
-  search.addEventListener('input',function(){renderList(search.value)});
+  search.addEventListener('input',function(){renderList(search.value); updateSearchClear();});
+  if(searchClear){ searchClear.addEventListener('click', function(){ search.value=''; renderList(''); updateSearchClear(); try{search.focus()}catch(e){} }); }
   if(categorySel){categorySel.addEventListener('change',function(){renderList(search.value)})}
   if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value)})}
 
@@ -764,4 +805,5 @@
   buildCategories(DATA);
   renderList('');
   updateUI();
+  updateSearchClear();
 })();
