@@ -832,7 +832,22 @@
   if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value)})}
 
   if('serviceWorker' in navigator){
-    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        function skip(sw){ try{ sw.postMessage({type:'SKIP_WAITING'}); }catch(e){} }
+        if(reg.waiting){ skip(reg.waiting); }
+        reg.addEventListener('updatefound', function(){
+          var nw=reg.installing;
+          if(!nw) return;
+          nw.addEventListener('statechange', function(){
+            if(nw.state==='installed' && navigator.serviceWorker.controller){ skip(nw); }
+          });
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', function(){
+          try{ window.location.reload(); }catch(e){}
+        });
+      }).catch(function(){});
+    });
   }
   // Attempt resume on visibility change (iOS may suspend on background)
   document.addEventListener('visibilitychange', function(){
