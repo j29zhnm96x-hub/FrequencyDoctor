@@ -424,8 +424,7 @@
       {value:'birds.mp3', label:'Birds'},
       {value:'rain_forest.mp3', label:'Rain forest'},
       {value:'galactic_waves.mp3', label:'Galactic waves'},
-      {value:'white_noise.mp3', label:'White noise'},
-      {value:'drum-loop.mp3', label:'Drum loop'}
+      {value:'white_noise.mp3', label:'White noise'}
     ];
     var frag=document.createDocumentFragment();
     options.forEach(function(opt){
