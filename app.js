@@ -228,7 +228,7 @@
     if(ms>0){
       sleepDeadline=Date.now()+ms;
       sleepTimeout=setTimeout(function(){ sleepTimeout=null; sleepDeadline=0; try{stopAllVoices(false)}catch(e){} try{stopBgLoop()}catch(e){} resetTimerUI(); restoreMasterVolume(); }, ms);
-      var fadeSec=Math.min(10, ms/1000);
+      var fadeSec=Math.min(15, ms/1000);
       var pre=Math.max(0, ms - Math.floor(fadeSec*1000));
       preFadeTimeout=setTimeout(function(){ startVolumeFade(fadeSec); }, pre);
       ensureCountdownRunning();
@@ -400,7 +400,9 @@
       {value:'', label:'No background'},
       {value:'ambientalsynth.mp3', label:'Ambiental synth'},
       {value:'birds.mp3', label:'Birds'},
-      {value:'rain_forest.mp3', label:'Rain forest'}
+      {value:'rain_forest.mp3', label:'Rain forest'},
+      {value:'galactic_waves.mp3', label:'Galactic waves'},
+      {value:'white_noise.mp3', label:'White noise'}
     ];
     var frag=document.createDocumentFragment();
     options.forEach(function(opt){
@@ -419,7 +421,7 @@
     }
     startOutputIfNeeded();
     stopAllVoices(true);
-    startMulti([{id:'custom|'+f,name:'Custom',frequency:f}],0);
+    startMulti([{id:'custom|'+f,name:'Custom',frequency:f}],5.0);
   }
 
   function stopTone(silent){ stopAllVoices(silent); }
@@ -455,7 +457,7 @@
     var n=items.length;
     var perGain = 1/Math.max(1,Math.sqrt(n));
     var now=audioCtx.currentTime;
-    var rin = (typeof rampIn==='number')?rampIn:0.02;
+    var rin = (typeof rampIn==='number')?rampIn:5.0;
     // ramp master to volume
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(0,now);
@@ -490,7 +492,7 @@
 
   function stopAllVoices(silent){
     var now=audioCtx?audioCtx.currentTime:0;
-    var rout=silent?0:0.05;
+    var rout=silent?0:15.0;
     // ramp master to 0 and stop all
     if(gain && audioCtx){
       var v=gain.gain.value;
@@ -507,6 +509,12 @@
     playing=false;
     updateUI();
     clearSleepTimer();
+    if(!silent){
+      try{
+        var delay=Math.ceil(rout*1000)+60;
+        setTimeout(function(){ try{stopBgLoop()}catch(e){} restoreMasterVolume(); }, delay);
+      }catch(e){}
+    }
   }
 
   function updateUI(){
@@ -531,7 +539,7 @@
     startTone(f);
     scheduleSleepTimerFromUI();
   });
-  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); resetTimerUI(); restoreMasterVolume(); });
+  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); resetTimerUI(); });
   vol.addEventListener('input',function(){
     volumeVal=Number(vol.value)/100;
     if(gain && audioCtx){
@@ -600,7 +608,7 @@
   if(playSelectedBtn){
     playSelectedBtn.addEventListener('click',function(){
       var items=DATA.filter(function(x){return selected.has(x.id)});
-      if(items.length){ startOutputIfNeeded(); startMulti(items,0.02); scheduleSleepTimerFromUI(); }
+      if(items.length){ startOutputIfNeeded(); startMulti(items,5.0); scheduleSleepTimerFromUI(); }
     });
   }
   if(clearSelectedBtn){
