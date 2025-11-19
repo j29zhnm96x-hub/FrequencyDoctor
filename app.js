@@ -35,9 +35,10 @@
   var themeLight=document.getElementById('themeLight');
 
   var audioCtx=null,osc=null,gain=null,playing=false, mediaDest=null;
+  var directConnected=false; // guard to avoid multiple destination connections
   var volumeVal=Number(vol.value)/100;
-  var bgAudio=null; // legacy reference (unused in new loop path)
-  var bgGain=null, bgSource=null;
+  var bgAudio=null; // fallback media element
+  var bgGain=null, bgSource=null, bgMediaSource=null;
   var bgBuffers=Object.create(null);
   var bgVolumeVal=bgLoopVolume? Number(bgLoopVolume.value)/100 : 0.4;
   var DATA=[];
@@ -100,6 +101,9 @@
       gain=audioCtx.createGain();
       gain.gain.value=0;
     }
+    if(audioCtx && !directConnected){
+      try{ gain.connect(audioCtx.destination); directConnected=true; }catch(e){}
+    }
     if(audioCtx && !mediaDest){
       try{
         mediaDest=audioCtx.createMediaStreamDestination();
@@ -151,7 +155,8 @@
     }
     return 0;
   }
-  var sleepTimeout=null, sleepDeadline=0, countdownInterval=null, preFadeTimeout=null;
+  var sleepTimeout=null, sleepDeadline=0, countdownInterval=null, preFadeTimeout=null, postStopTimeout=null;
+  function clearPostStopSchedule(){ if(postStopTimeout){ try{clearTimeout(postStopTimeout)}catch(e){} postStopTimeout=null; } }
   function clearFadeSchedule(){ if(preFadeTimeout){ try{clearTimeout(preFadeTimeout)}catch(e){} preFadeTimeout=null; } }
   function startVolumeFade(seconds){
     try{
@@ -289,12 +294,12 @@
         bgGain.gain.cancelScheduledValues(now);
         bgGain.gain.setTargetAtTime(0, now, 0.03);
       }
-      if(bgSource){
-        try{ bgSource.stop(now + 0.05); }catch(e){}
-        try{ bgSource.disconnect(); }catch(e){}
-      }
+      if(bgSource){ try{ bgSource.stop(now + 0.05); }catch(e){} try{ bgSource.disconnect(); }catch(e){} }
+      if(bgMediaSource){ try{ bgMediaSource.disconnect(); }catch(e){} }
+      if(bgAudio){ try{ bgAudio.pause(); }catch(e){} try{ bgAudio.currentTime=0; }catch(e){} }
     }finally{
       bgSource=null;
+      bgMediaSource=null;
     }
   }
 
@@ -376,6 +381,7 @@
       try{ audioCtx.resume(); }catch(e){}
     }
     startOutputIfNeeded();
+    clearPostStopSchedule();
     loadBgBuffer(id).then(function(buffer){
       var points=computeLoopPoints(buffer);
       var now=audioCtx.currentTime;
@@ -391,7 +397,23 @@
       bgGain.gain.setValueAtTime(Math.max(0,bgGain.gain.value), now);
       bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.05);
       src.start(now);
-    }).catch(function(){});
+    }).catch(function(){
+      try{
+        var srcUrl='audio/'+id;
+        bgAudio=new Audio(srcUrl);
+        bgAudio.crossOrigin='anonymous';
+        bgAudio.loop=true;
+        // route element through WebAudio for unified fading
+        bgMediaSource=audioCtx.createMediaElementSource(bgAudio);
+        bgMediaSource.connect(bgGain);
+        // fade-in via bgGain already scheduled by startBgLoop
+        var now=audioCtx.currentTime;
+        bgGain.gain.cancelScheduledValues(now);
+        bgGain.gain.setValueAtTime(Math.max(0,bgGain.gain.value), now);
+        bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.05);
+        bgAudio.play().catch(function(){});
+      }catch(e){}
+    });
   }
 
   function initBgLoopOptions(){
@@ -421,6 +443,7 @@
       try{audioCtx.resume()}catch(e){}
     }
     startOutputIfNeeded();
+    clearPostStopSchedule();
     stopAllVoices(true);
     startMulti([{id:'custom|'+f,name:'Custom',frequency:f}],5.0);
   }
@@ -453,6 +476,7 @@
       try{audioCtx.resume()}catch(e){}
     }
     startOutputIfNeeded();
+    clearPostStopSchedule();
     voices.forEach(function(v){ try{v.osc.stop()}catch(e){} try{v.osc.disconnect()}catch(e){} });
     voices.length=0;
     var n=items.length;
@@ -612,13 +636,6 @@
       if(items.length){ startOutputIfNeeded(); startMulti(items,5.0); scheduleSleepTimerFromUI(); }
     });
   }
-  if(clearSelectedBtn){
-    clearSelectedBtn.addEventListener('click',function(){
-      selected.clear();
-      updateSelUI();
-      renderList(search.value);
-    });
-  }
   if(settingsBtn){ settingsBtn.addEventListener('click',openSettings); }
   if(settingsClose){ settingsClose.addEventListener('click',closeSettings); }
   if(settingsCancel){ settingsCancel.addEventListener('click',closeSettings); }
@@ -643,6 +660,21 @@
     helpModal.addEventListener('click', function(ev){ var t=ev.target; if(t && t.getAttribute && t.getAttribute('data-close')) closeHelp(); });
   }
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeHelp(); });
+
+  // One-time audio unlock for stricter browsers (iOS Safari, etc.)
+  (function(){
+    var unlocked=false;
+    function unlock(){
+      if(unlocked) return; unlocked=true;
+      try{ ensureAudio(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } startOutputIfNeeded(); }catch(e){}
+      try{ document.removeEventListener('pointerdown',unlock); document.removeEventListener('keydown',unlock); document.removeEventListener('touchstart',unlock); }catch(e){}
+    }
+    try{
+      document.addEventListener('pointerdown',unlock,{passive:true});
+      document.addEventListener('touchstart',unlock,{passive:true});
+      document.addEventListener('keydown',unlock);
+    }catch(e){}
+  })();
 
   if(clearSelectedBtn){
     clearSelectedBtn.addEventListener('click',function(){
