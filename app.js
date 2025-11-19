@@ -451,7 +451,7 @@
     startMulti([{id:'custom|'+f,name:'Custom',frequency:f}],5.0);
   }
 
-  function stopTone(silent){ stopAllVoices(silent); }
+  function stopTone(silent, fadeSec){ stopAllVoices(silent, fadeSec); }
 
   function createPanner(pan){
     if(!audioCtx) ensureAudio();
@@ -524,9 +524,9 @@
     }catch(e){}
   }
 
-  function stopAllVoices(silent){
+  function stopAllVoices(silent, fadeSec){
     var now=audioCtx?audioCtx.currentTime:0;
-    var rout=silent?0:15.0;
+    var rout=silent?0: (typeof fadeSec==='number'? fadeSec : 15.0);
     // ramp master to 0 and stop all
     if(gain && audioCtx){
       var v=gain.gain.value;
@@ -574,7 +574,7 @@
     startTone(f);
     scheduleSleepTimerFromUI();
   });
-  stopBtn.addEventListener('click',function(){ stopTone(false); clearSleepTimer(); resetTimerUI(); });
+  stopBtn.addEventListener('click',function(){ stopTone(false, 3.0); clearSleepTimer(); resetTimerUI(); });
   vol.addEventListener('input',function(){
     volumeVal=Number(vol.value)/100;
     if(gain && audioCtx){
