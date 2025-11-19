@@ -49,6 +49,10 @@
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
   }
 
+  function isBgActive(){
+    try{ return !!(bgSource || (bgAudio && !bgAudio.paused)); }catch(e){ return false }
+  }
+
   // Theme
   function applyTheme(t){
     var theme=(t==='light')?'light':'dark';
@@ -501,6 +505,12 @@
     });
     playing = voices.length>0;
     updateUI();
+    // Ensure background FX restarts if selected and not currently active
+    try{
+      if(bgLoopSelect && bgLoopSelect.value && !isBgActive()){
+        startBgLoop(bgLoopSelect.value);
+      }
+    }catch(e){}
     // Media Session
     try{
       if('mediaSession' in navigator){
@@ -533,10 +543,11 @@
     playing=false;
     updateUI();
     clearSleepTimer();
+    clearPostStopSchedule();
     if(!silent){
       try{
         var delay=Math.ceil(rout*1000)+60;
-        setTimeout(function(){ try{stopBgLoop()}catch(e){} restoreMasterVolume(); }, delay);
+        postStopTimeout = setTimeout(function(){ try{stopBgLoop()}catch(e){} restoreMasterVolume(); }, delay);
       }catch(e){}
     }
   }
