@@ -78,7 +78,7 @@
   }
   function isIOS(){ try{ return /iPad|iPhone|iPod/.test(navigator.userAgent); }catch(e){ return false } }
   function isStandalone(){ try{ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || !!(navigator.standalone); }catch(e){ return false } }
-  function preferMediaBG(){ return isIOS() && isStandalone(); }
+  function preferMediaBG(){ return isIOS(); }
   function preferElementBG(){ return isIOS() && !isStandalone(); }
 
   function isBgActive(){
