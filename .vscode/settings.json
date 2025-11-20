@@ -1,0 +1,4 @@
+{
+    "accessibility.voice.ignoreCodeBlocks": true,
+    "accessibility.voice.keywordActivation": "chatInContext"
+}
