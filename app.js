@@ -106,10 +106,26 @@
   var favs=loadFavs();
 
   function ensureAudio(){
+    if(audioCtx && audioCtx.state==='closed'){
+      audioCtx=null; gain=null; masterComp=null; mediaDest=null; directConnected=false; outputMode=null;
+    }
     if(!audioCtx){
       audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       gain=audioCtx.createGain();
       gain.gain.value=0;
+      try{
+        audioCtx.onstatechange=function(){
+          try{
+            if(preferMediaBG()){
+              if(audioCtx.state==='suspended'){
+                try{ audioCtx.resume(); }catch(e){}
+              }
+              ensureOutputPlaying();
+              startKeepAlive();
+            }
+          }catch(e){}
+        };
+      }catch(e){}
     }
     // Build output chain: gain -> compressor -> (wired later)
     if(audioCtx && !masterComp){
@@ -187,10 +203,20 @@
     try{
       if(!preferMediaBG()) { stopKeepAlive(); return; }
       if(keepAliveInterval) return;
-      keepAliveInterval = setInterval(function(){ ensureOutputPlaying(); }, 3000);
+      keepAliveInterval = setInterval(function(){ ensureAudio(); ensureOutputPlaying(); recoverAudioGraph(); }, 3000);
     }catch(e){}
   }
   function stopKeepAlive(){ try{ if(keepAliveInterval){ clearInterval(keepAliveInterval); } }catch(e){} keepAliveInterval=null; }
+
+  function recoverAudioGraph(){
+    try{
+      if(!audioCtx) return;
+      if(audioCtx.state==='closed'){
+        audioCtx=null; gain=null; masterComp=null; mediaDest=null; directConnected=false; outputMode=null;
+        ensureAudio(); wireOutput(); startOutputIfNeeded();
+      }
+    }catch(e){}
+  }
   function updateSearchClear(){ if(searchClear){ searchClear.style.display = (search && search.value)? 'inline-flex' : 'none'; } }
   function hasSelection(){
     try{
@@ -305,9 +331,9 @@
   function resetTimerUI(){
     try{
       if(sleepTimerSel){ sleepTimerSel.value=''; }
-      if(timerCustomWrap){ timerCustomWrap.hidden=true; }
       if(timerHrs){ timerHrs.value='0'; }
       if(timerMin){ timerMin.value='0'; }
+      applyTimerCustomState();
       stopCountdownDisplay();
     }catch(e){}
   }
@@ -661,17 +687,28 @@
       timerMin.appendChild(f2);
     }
   }
+  function applyTimerCustomState(){
+    var v = (sleepTimerSel && sleepTimerSel.value) || '';
+    var custom = v==='custom';
+    if(timerCustomWrap){ timerCustomWrap.hidden = false; }
+    if(timerHrs){ timerHrs.disabled = !custom; }
+    if(timerMin){ timerMin.disabled = !custom; }
+    if(timerCountdown){ try{ timerCountdown.classList.toggle('disabled', (!custom)); }catch(e){} }
+  }
   if(sleepTimerSel){
     sleepTimerSel.addEventListener('change', function(){
-      var show = sleepTimerSel.value === 'custom';
-      if(timerCustomWrap){
-        timerCustomWrap.hidden = !show;
-        if(show){ initTimerHMS(); if(timerHrs && timerHrs.value===''){ timerHrs.value='0'; } if(timerMin && timerMin.value===''){ timerMin.value='30'; } }
+      applyTimerCustomState();
+      if(sleepTimerSel.value==='custom'){
+        initTimerHMS(); if(timerHrs && timerHrs.value===''){ timerHrs.value='0'; } if(timerMin && timerMin.value===''){ timerMin.value='30'; }
       }
       updateTimerPreview();
       if(playing){ scheduleSleepTimerFromUI(); }
     });
+    // initialize state on load
+    applyTimerCustomState();
   }
+  // Ensure H/M are populated at load
+  initTimerHMS();
   if(timerHrs){ timerHrs.addEventListener('change', function(){ updateTimerPreview(); if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
   if(timerMin){ timerMin.addEventListener('change', function(){ updateTimerPreview(); if(playing && sleepTimerSel && sleepTimerSel.value==='custom'){ scheduleSleepTimerFromUI(); } }); }
   if(bgLoopVolume){
@@ -735,9 +772,9 @@
 
   // Lifecycle guards: reassert playback on visibility/page changes (iOS PWA)
   try{
-    document.addEventListener('visibilitychange', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
-    window.addEventListener('pageshow', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
-    window.addEventListener('pagehide', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
+    document.addEventListener('visibilitychange', function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } });
+    window.addEventListener('pageshow', function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } });
+    window.addEventListener('pagehide', function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } });
   }catch(e){}
 
   // One-time audio unlock for stricter browsers (iOS Safari, etc.)
@@ -745,7 +782,7 @@
     var unlocked=false;
     function unlock(){
       if(unlocked) return; unlocked=true;
-      try{ ensureAudio(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } startOutputIfNeeded(); }catch(e){}
+      try{ ensureAudio(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } recoverAudioGraph(); startOutputIfNeeded(); }catch(e){}
       try{ document.removeEventListener('pointerdown',unlock); document.removeEventListener('keydown',unlock); document.removeEventListener('touchstart',unlock); }catch(e){}
     }
     try{
@@ -754,6 +791,15 @@
       document.addEventListener('keydown',unlock);
     }catch(e){}
   })();
+
+  // audioOut error recovery
+  try{
+    if(audioOut){
+      ['pause','stalled','waiting','error','emptied'].forEach(function(ev){
+        audioOut.addEventListener(ev, function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } }, {passive:true});
+      });
+    }
+  }catch(e){}
 
   if(clearSelectedBtn){
     clearSelectedBtn.addEventListener('click',function(){

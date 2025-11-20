@@ -40,12 +40,14 @@ input,textarea,select,#search,#freq{user-select:text;-webkit-user-select:text}
 .timer-input{background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:10px;padding:.5rem .7rem;min-width:9ch}
 .btn{appearance:none;border:1px solid #334155;background:#0b1220;color:var(--text);border-radius:10px;padding:.6rem .9rem;cursor:pointer}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
+.select:disabled{opacity:.5;cursor:not-allowed}
 .btn.primary{background:linear-gradient(180deg,var(--brand),var(--brand2));border-color:transparent;color:#001018;font-weight:600}
 .btn.sm{padding:.4rem .6rem;font-size:.85rem;border-radius:8px}
 .sliders{margin-top:.8rem}
 #volume{width:100%;appearance:none;height:6px;background:#0b1220;border:1px solid #334155;border-radius:999px}
 .now-playing{margin-top:.6rem;color:var(--muted);font-size:.9rem;overflow-wrap:anywhere;word-break:break-word}
 .timer-countdown{display:inline-flex;align-items:center;justify-content:center;padding:.45rem .6rem;border:1px solid #334155;border-radius:10px;background:#0b1220;color:#e2e8f0;min-width:8.5ch;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-variant-numeric:tabular-nums;letter-spacing:.5px;box-shadow:inset 0 0 0 1px #ffffff08,0 1px 0 #0005;text-shadow:0 0 8px rgba(14,165,233,.35),0 0 2px rgba(14,165,233,.7)}
+.timer-countdown.disabled{opacity:.5;filter:saturate(.6)}
 .multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
 .multi-actions-right{display:flex;align-items:center;gap:.4rem}
 .sel-count{color:var(--muted);font-size:.9rem}
