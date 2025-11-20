@@ -16,6 +16,25 @@
   var bgLoopVolume=document.getElementById('bgLoopVolume');
   var freqVolume=document.getElementById('freqVolume');
   var audioOut=document.getElementById('audioOut');
+  var createCustomBtn=document.getElementById('createCustomBtn');
+  var saveSelectionBtn=document.getElementById('saveSelectionBtn');
+  var customModal=document.getElementById('customModal');
+  var customClose=document.getElementById('customClose');
+  var customCancel=document.getElementById('customCancel');
+  var customSave=document.getElementById('customSave');
+  var customName=document.getElementById('customName');
+  var customDesc=document.getElementById('customDesc');
+  var customFreqs=document.getElementById('customFreqs');
+  var addFreqBtn=document.getElementById('addFreqBtn');
+  var customBg=document.getElementById('customBg');
+  var customFreqVol=document.getElementById('customFreqVol');
+  var customTimer=document.getElementById('customTimer');
+  var customTimerWrap=document.getElementById('customTimerWrap');
+  var customTimerHrs=document.getElementById('customTimerHrs');
+  var customTimerMin=document.getElementById('customTimerMin');
+  var tabLibrary=document.getElementById('tabLibrary');
+  var tabCustom=document.getElementById('tabCustom');
+  var customList=document.getElementById('customList');
   var sleepTimerSel=document.getElementById('sleepTimer');
   var timerCustomWrap=document.getElementById('timerCustomWrap');
   var timerHrs=document.getElementById('timerHrs');
@@ -48,6 +67,8 @@
   var DATA=[];
   var voices=[]; // active voices for multi-play
   var selected=new Set(); // selected item ids
+  var CUSTOMS=[];
+  var editingCustomId=null;
   var outputMode=null; // 'direct' | 'media'
   var outputOverride=null; // force 'direct' or 'media' temporarily
   var outputOverrideTimer=null;
@@ -56,6 +77,151 @@
 
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
+  }
+
+  function loadCustoms(){
+    try{ var raw=localStorage.getItem('fd.custom'); if(!raw) return []; var arr=JSON.parse(raw)||[]; if(!Array.isArray(arr)) return []; return arr.filter(function(x){ return x && typeof x.id==='string' && Array.isArray(x.freqs) && x.freqs.length>0; }); }catch(e){ return [] }
+  }
+  function saveCustoms(arr){ try{ localStorage.setItem('fd.custom', JSON.stringify(arr||[])); }catch(e){} }
+  function initCustomBgOptions(){
+    if(!customBg) return;
+    var options=[
+      {value:'', label:'No background'},
+      {value:'ambientalsynth.mp3', label:'Ambiental synth'},
+      {value:'birds.mp3', label:'Birds'},
+      {value:'rain_forest.mp3', label:'Rain forest'},
+      {value:'galactic_waves.mp3', label:'Galactic waves'},
+      {value:'white_noise.mp3', label:'White noise'}
+    ];
+    var frag=document.createDocumentFragment();
+    options.forEach(function(opt){ var o=document.createElement('option'); o.value=opt.value; o.textContent=opt.label; frag.appendChild(o); });
+    customBg.replaceChildren(frag);
+  }
+  function switchTab(toCustom){
+    try{
+      if(toCustom){ if(customList) customList.hidden=false; if(listEl) listEl.hidden=true; if(tabCustom) tabCustom.classList.add('primary'); if(tabLibrary) tabLibrary.classList.remove('primary'); }
+      else { if(customList) customList.hidden=true; if(listEl) listEl.hidden=false; if(tabLibrary) tabLibrary.classList.add('primary'); if(tabCustom) tabCustom.classList.remove('primary'); }
+    }catch(e){}
+  }
+  function uuid(){ return 'u_'+Date.now().toString(36)+'_'+Math.floor(Math.random()*1e9).toString(36); }
+  function openCustomModal(prefill){
+    try{
+      if(customModal) customModal.hidden=false;
+      if(customName) customName.value = (prefill && prefill.name) || '';
+      if(customDesc) customDesc.value = (prefill && prefill.description) || '';
+      if(customBg){ initCustomBgOptions(); customBg.value = (prefill && prefill.bg) || ''; }
+      if(customFreqVol){ var fv=(prefill && typeof prefill.freqVol==='number')? prefill.freqVol : (freqVolume? Number(freqVolume.value) : 100); customFreqVol.value=String(Math.max(0,Math.min(100,fv))); }
+      if(customTimer){
+        var tv=(prefill && prefill.timer && prefill.timer.value) || '';
+        customTimer.value=tv;
+        if(customTimerWrap){ customTimerWrap.hidden = (tv!=='custom'); }
+        if(tv==='custom'){
+          if(customTimerHrs) customTimerHrs.value = String((prefill && prefill.timer && (prefill.timer.hrs|0)) || 0);
+          if(customTimerMin) customTimerMin.value = String((prefill && prefill.timer && (prefill.timer.min|0)) || 30);
+        }
+      }
+      if(customFreqs){ customFreqs.replaceChildren(); }
+      var freqs=(prefill && Array.isArray(prefill.freqs) && prefill.freqs.length)? prefill.freqs.slice(0,6) : [Number(freqInput&&freqInput.value)||432];
+      freqs.forEach(function(f){ addFreqRow(f); });
+      if(addFreqBtn){ addFreqBtn.disabled = (customFreqs.children.length>=6); }
+    }catch(e){}
+  }
+  function closeCustom(){ try{ if(customModal) customModal.hidden=true; editingCustomId=null; }catch(e){} }
+  function addFreqRow(val){
+    try{
+      if(!customFreqs) return; if(customFreqs.children.length>=6) return;
+      var wrap=document.createElement('div'); wrap.className='timer-custom';
+      var inp=document.createElement('input'); inp.type='number'; inp.min='0.1'; inp.max='20000'; inp.step='0.01'; inp.value=(typeof val==='number'? val : ''); inp.className='timer-input';
+      var del=document.createElement('button'); del.type='button'; del.className='btn sm'; del.textContent='×';
+      del.addEventListener('click', function(){ try{ customFreqs.removeChild(wrap); if(addFreqBtn) addFreqBtn.disabled=(customFreqs.children.length>=6); }catch(e){} });
+      wrap.appendChild(inp); wrap.appendChild(del); customFreqs.appendChild(wrap);
+      if(addFreqBtn) addFreqBtn.disabled=(customFreqs.children.length>=6);
+    }catch(e){}
+  }
+  function collectCustomFromModal(){
+    var name=(customName&&customName.value||'').trim();
+    var desc=(customDesc&&customDesc.value||'').trim();
+    var bg=(customBg&&customBg.value)||'';
+    var freqs=[]; if(customFreqs){ Array.from(customFreqs.querySelectorAll('input[type="number"]')).forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) freqs.push(clamp(v,0.1,20000)); }); }
+    freqs=freqs.slice(0,6);
+    var fv = customFreqVol? Math.max(0, Math.min(100, Number(customFreqVol.value)||0)) : 100;
+    var tval = customTimer? (customTimer.value||'') : '';
+    var th = 0, tm = 0;
+    if(tval==='custom'){
+      th = customTimerHrs? Math.max(0, Math.min(23, parseInt(customTimerHrs.value||'0',10))) : 0;
+      tm = customTimerMin? Math.max(0, Math.min(59, parseInt(customTimerMin.value||'0',10))) : 0;
+    }
+    return {name:name, description:desc, bg:bg, freqs:freqs, freqVol: fv, timer: { value: tval, hrs: th, min: tm }};
+  }
+  function validateCustom(obj){ return obj && obj.name && Array.isArray(obj.freqs) && obj.freqs.length>0; }
+  function renderCustomList(){
+    if(!customList) return;
+    var arr=CUSTOMS.slice();
+    try{ if(onlyFavs && onlyFavs.checked){ arr=arr.filter(function(x){ return favs.has(x.id); }); } }catch(e){}
+    arr=arr.sort(function(a,b){ return a.name.localeCompare(b.name); });
+    var frag=document.createDocumentFragment();
+    if(arr.length===0){ var empty=document.createElement('div'); empty.className='section'; empty.innerHTML='<div class="items"><div class="item"><span class="name">No custom items</span><span class="hz"></span></div></div>'; frag.appendChild(empty); customList.replaceChildren(frag); return; }
+    var sec=document.createElement('div'); sec.className='section';
+    var wrap=document.createElement('div'); wrap.className='items'; sec.appendChild(wrap);
+    arr.forEach(function(x){
+      var it=document.createElement('div'); it.className='item'; it.setAttribute('role','button'); it.tabIndex=0;
+      var left=document.createElement('div'); left.className='left';
+      var isFav=favs.has(x.id);
+      var star=document.createElement('button'); star.className='star'+(isFav?' active':''); star.type='button'; star.setAttribute('aria-label','Favorite'); star.textContent='★';
+      star.addEventListener('click',function(ev){ ev.stopPropagation(); if(favs.has(x.id)) favs.delete(x.id); else favs.add(x.id); saveFavs(favs); renderCustomList(); });
+      var text=document.createElement('div'); text.className='text';
+      var nameEl=document.createElement('div'); nameEl.className='name'; nameEl.textContent=x.name; text.appendChild(nameEl);
+      if(x.description){ var desc=document.createElement('div'); desc.className='desc'; desc.textContent=x.description; text.appendChild(desc); }
+      left.appendChild(star); left.appendChild(text);
+      var right=document.createElement('div');
+      var edit=document.createElement('button'); edit.className='star'; edit.type='button'; edit.textContent='✎'; edit.setAttribute('aria-label','Edit');
+      edit.addEventListener('click',function(ev){ ev.stopPropagation(); editingCustomId=x.id; openCustomModal({name:x.name, description:x.description||'', freqs:x.freqs||[], bg:x.bg||'', freqVol: (typeof x.freqVol==='number'? x.freqVol:100), timer: x.timer||{value:'',hrs:0,min:0}}); });
+      var del=document.createElement('button'); del.className='star'; del.type='button'; del.textContent='×'; del.setAttribute('aria-label','Delete');
+      del.addEventListener('click',function(ev){ ev.stopPropagation(); var ok=window.confirm('Delete "'+x.name+'"?'); if(!ok) return; CUSTOMS=CUSTOMS.filter(function(c){return c.id!==x.id}); saveCustoms(CUSTOMS); renderCustomList(); });
+      right.appendChild(edit); right.appendChild(del);
+      var hz=document.createElement('span'); hz.className='hz'; hz.textContent=x.freqs.map(function(f){return Number(f).toFixed(2)+' Hz'}).join(' · ');
+      it.appendChild(left); it.appendChild(hz); it.appendChild(right);
+      it.addEventListener('click', function(){
+        try{
+          // Apply BG
+          if(x.bg!=null){ if(bgLoopSelect){ bgLoopSelect.value=x.bg||''; } if(x.bg){ startBgLoop(x.bg); } else { stopBgLoop(); } }
+          // Apply default freq volume
+          if(typeof x.freqVol==='number' && freqVolume){ freqVolume.value=String(Math.max(0,Math.min(100,x.freqVol))); freqVolumeVal = Number(freqVolume.value)/100; }
+          // Apply default sleep timer
+          if(sleepTimerSel && x.timer){
+            sleepTimerSel.value = x.timer.value||'';
+            if(x.timer.value==='custom'){
+              if(timerHrs) timerHrs.value = String(Math.max(0,Math.min(23, x.timer.hrs|0)));
+              if(timerMin) timerMin.value = String(Math.max(0,Math.min(59, x.timer.min|0)));
+            }
+            updateTimerPreview();
+          }
+        }catch(e){}
+        var items=(x.freqs||[]).map(function(f){ return {id:'custom|'+f, name:x.name, frequency:f}; }); if(items.length){ startMulti(items,5.0); scheduleSleepTimerFromUI(); }
+      });
+      it.addEventListener('keydown', function(ev){ if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); it.click(); }});
+      wrap.appendChild(it);
+    });
+    frag.appendChild(sec);
+    customList.replaceChildren(frag);
+  }
+
+  function prefillFromSelection(){
+    var freqs=[];
+    try{
+      if(selected && selected.size>0){
+        var map=new Map(); DATA.forEach(function(x){ map.set(x.id, x); });
+        selected.forEach(function(id){ var it=map.get(id); if(it){ var f=Number(it.frequency); if(!isNaN(f)) freqs.push(f); } });
+      } else if(voices && voices.length>0){
+        freqs = voices.map(function(v){ return Number(v.meta && v.meta.frequency); }).filter(function(n){ return !isNaN(n); });
+      } else if(freqInput){
+        var f=Number(freqInput.value); if(!isNaN(f)) freqs=[f];
+      }
+    }catch(e){}
+    freqs=freqs.filter(function(f){return !isNaN(f)}).slice(0,6);
+    if(freqs.length===0) freqs=[432];
+    var bgv = (bgLoopSelect && bgLoopSelect.value) || '';
+    return { name:'', description:'', freqs: freqs, bg:bgv };
   }
   // BG element fade helpers (Safari browser mode)
   var bgFadeRAF=null;
@@ -897,6 +1063,20 @@
   }
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeHelp(); });
 
+  if(tabLibrary){ tabLibrary.addEventListener('click', function(){ switchTab(false); }); }
+  if(tabCustom){ tabCustom.addEventListener('click', function(){ switchTab(true); }); }
+  if(createCustomBtn){ createCustomBtn.addEventListener('click', function(){ editingCustomId=null; openCustomModal(prefillFromSelection()); }); }
+  if(saveSelectionBtn){ saveSelectionBtn.addEventListener('click', function(){ editingCustomId=null; openCustomModal(prefillFromSelection()); }); }
+  if(customClose){ customClose.addEventListener('click', function(){ closeCustom(); }); }
+  if(customCancel){ customCancel.addEventListener('click', function(){ closeCustom(); }); }
+  if(customModal){ customModal.addEventListener('click', function(ev){ var t=ev.target; if(t && t.getAttribute && t.getAttribute('data-close')) closeCustom(); }); }
+  if(addFreqBtn){ addFreqBtn.addEventListener('click', function(){ addFreqRow(''); }); }
+  if(customTimer){ customTimer.addEventListener('change', function(){ var v=customTimer.value||''; if(customTimerWrap){ customTimerWrap.hidden=(v!=='custom'); } }); }
+  if(customTimerHrs){ customTimerHrs.addEventListener('change', function(){ var v=parseInt(customTimerHrs.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0,Math.min(23,v)); customTimerHrs.value=String(v); }); }
+  if(customTimerMin){ customTimerMin.addEventListener('change', function(){ var v=parseInt(customTimerMin.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0,Math.min(59,v)); customTimerMin.value=String(v); }); }
+  if(customSave){ customSave.addEventListener('click', function(){ var obj=collectCustomFromModal(); if(!validateCustom(obj)) return; if(editingCustomId){ CUSTOMS=CUSTOMS.map(function(c){ if(c.id===editingCustomId){ return { id:c.id, name:obj.name, description:obj.description||'', freqs:obj.freqs, bg:obj.bg||'', freqVol: (typeof obj.freqVol==='number'? obj.freqVol : 100), timer: obj.timer||{value:'',hrs:0,min:0} }; } return c; }); } else { var id=uuid(); CUSTOMS.push({ id:id, name:obj.name, description:obj.description||'', freqs:obj.freqs, bg:obj.bg||'', freqVol: (typeof obj.freqVol==='number'? obj.freqVol : 100), timer: obj.timer||{value:'',hrs:0,min:0} }); }
+    saveCustoms(CUSTOMS); renderCustomList(); closeCustom(); switchTab(true); }); }
+
   // Lifecycle guards: reassert playback on visibility/page changes (iOS PWA)
   try{
     document.addEventListener('visibilitychange', function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } });
@@ -946,6 +1126,8 @@
       startBgLoop(bgLoopSelect.value);
     });
   }
+  CUSTOMS = loadCustoms();
+  renderCustomList();
 
   function renderList(filter){
     var q=(filter||'').trim().toLowerCase();
@@ -1083,7 +1265,7 @@
   search.addEventListener('input',function(){renderList(search.value); updateSearchClear();});
   if(searchClear){ searchClear.addEventListener('click', function(){ search.value=''; renderList(''); updateSearchClear(); try{search.focus()}catch(e){} }); }
   if(categorySel){categorySel.addEventListener('change',function(){renderList(search.value)})}
-  if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value)})}
+  if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value); renderCustomList();})}
 
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){

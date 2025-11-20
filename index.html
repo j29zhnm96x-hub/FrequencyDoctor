@@ -150,6 +150,8 @@
         <div class="multi-actions-right">
           <button id="clearSelected" class="btn sm">Clear selections</button>
           <button id="playSelected" class="btn sm">Play Selected</button>
+          <button id="saveSelectionBtn" class="btn sm">Save selection as custom</button>
+          <button id="createCustomBtn" class="btn sm primary">Create Custom Frequency</button>
         </div>
       </div>
 
@@ -180,11 +182,58 @@
         </div>
         <label class="fav-toggle"><input id="onlyFavs" type="checkbox"> Favorites only</label>
       </div>
+      <div class="multi-actions">
+        <div></div>
+        <div class="multi-actions-right">
+          <button id="tabLibrary" class="btn sm primary">Library</button>
+          <button id="tabCustom" class="btn sm">Custom</button>
+        </div>
+      </div>
       <div id="now-playing" class="now-playing">Idle</div>
     </section>
 
     <section class="list" id="list"></section>
+    <section class="list" id="customList" hidden></section>
   </main>
+  <div id="customModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="customTitle" hidden>
+    <div class="modal-overlay" data-close="1"></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="customTitle">Create Custom Frequency</h2>
+        <button id="customClose" class="icon-btn" aria-label="Close"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6.2 6.2 18 18m0-11.8L6.2 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-row"><div class="setting-label">Name</div><div class="setting-field"><input id="customName" class="search" placeholder="Name"></div></div>
+        <div class="setting-row"><div class="setting-label">Description</div><div class="setting-field"><textarea id="customDesc" class="search" rows="2" placeholder="Optional"></textarea></div></div>
+        <div class="setting-row"><div class="setting-label">Frequencies</div><div class="setting-field" style="flex-direction:column;align-items:stretch;gap:.35rem"><div id="customFreqs"></div><button id="addFreqBtn" class="btn sm">Add frequency</button></div></div>
+        <div class="setting-row"><div class="setting-label">Background FX</div><div class="setting-field"><select id="customBg" class="select"></select></div></div>
+        <div class="setting-row"><div class="setting-label">Default Freq volume</div><div class="setting-field" style="flex:1"><input id="customFreqVol" type="range" min="0" max="100" value="100" style="width:100%"></div></div>
+        <div class="setting-row"><div class="setting-label">Default Sleep timer</div><div class="setting-field" style="gap:.4rem"><select id="customTimer" class="select">
+          <option value="">Off</option>
+          <option value="15m">15m</option>
+          <option value="30m">30m</option>
+          <option value="45m">45m</option>
+          <option value="1h">1h</option>
+          <option value="1.5h">1,5h</option>
+          <option value="2h">2h</option>
+          <option value="3h">3h</option>
+          <option value="4h">4h</option>
+          <option value="6h">6h</option>
+          <option value="8h">8h</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <div id="customTimerWrap" class="timer-custom" hidden>
+          <input id="customTimerHrs" class="timer-input" type="number" min="0" max="23" value="0" aria-label="Hours">
+          <input id="customTimerMin" class="timer-input" type="number" min="0" max="59" value="30" aria-label="Minutes">
+        </div>
+        </div></div>
+      </div>
+      <div class="modal-foot">
+        <button id="customSave" class="btn primary">Save</button>
+        <button id="customCancel" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
   <audio id="audioOut" playsinline style="display:none"></audio>
   <script src="data/frequencies.js"></script>
   <script src="app.js"></script>
