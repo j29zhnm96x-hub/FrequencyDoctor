@@ -68,3 +68,23 @@ Favorites are remembered in your browser (localStorage). They will be preserved 
 - Audio may require a user gesture to start (tap Play first time).
 - Service Worker updates are applied on next reload after a change.
 - If you host under a subpath, ensure `sw.js` and cached paths still resolve.
+
+## Manual Test Checklist
+
+Run through this list after changes:
+
+1. Initial load: List renders, categories populated, theme matches system preference.
+2. Single tone: Enter `432` → Play; tone fades in (default ~5s) and updates Now Playing.
+3. Retune: While playing a single tone, change to `528`; playback retunes without restart.
+4. Multi play: Select 2–3 items → Play Selected; stereo panning distributes voices.
+5. Background loop: Choose an FX; loop fades in and volume slider adjusts smoothly.
+6. Fade settings: Open Settings, change Fade in/out; save; start/stop reflect new durations.
+7. Sleep timer: Set 15m; countdown shows; pre-fade then full stop at deadline.
+8. Favorites: Toggle star; filter Favorites only; reload to confirm persistence.
+9. Custom preset: Create preset (multiple freqs + BG); play; edit; delete.
+10. Offline: After first online visit, go offline and reload; interface and cached loops still work.
+11. Mobile layout: On ~390px width, controls wrap without overlap; all buttons visible.
+12. Accessibility: Tab to Play/Stop and list item name; Enter/Space triggers playback.
+13. Reset audio: Use Reset audio engine during playback; audio resumes correctly.
+14. SW update: Bump cache name in `sw.js`; reload; new assets served.
+15. Console: No uncaught errors during interactions.

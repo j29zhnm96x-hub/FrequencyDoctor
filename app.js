@@ -54,6 +54,8 @@
   var themeDark=document.getElementById('themeDark');
   var themeLight=document.getElementById('themeLight');
   var resetAudioBtn=document.getElementById('resetAudio');
+  var fadeInInput=document.getElementById('fadeInInput');
+  var fadeOutInput=document.getElementById('fadeOutInput');
 
   var audioCtx=null,osc=null,gain=null,playing=false, mediaDest=null;
   var directConnected=false; // guard to avoid multiple connection into output chain
@@ -74,6 +76,20 @@
   var outputOverrideTimer=null;
   var keepAliveInterval=null; // watchdog to keep sink alive on iOS PWA
   var lastPlayItems=[]; var lastRampIn=5.0; var lastBgId=''; var lastPlayActive=false; var resetting=false;
+  var configFadeIn=5.0; var configFadeOut=3.0; // user adjustable
+
+  function loadFadeSettings(){
+    try{ var fi=parseFloat(localStorage.getItem('fd.fadeIn')); if(!isNaN(fi)) configFadeIn=clamp(fi,0.05,15); }catch(e){}
+    try{ var fo=parseFloat(localStorage.getItem('fd.fadeOut')); if(!isNaN(fo)) configFadeOut=clamp(fo,0.05,15); }catch(e){}
+    if(fadeInInput) fadeInInput.value=String(configFadeIn);
+    if(fadeOutInput) fadeOutInput.value=String(configFadeOut);
+  }
+  function saveFadeSettings(){
+    if(fadeInInput){ var fi=parseFloat(fadeInInput.value); if(!isNaN(fi)) configFadeIn=clamp(fi,0.05,15); }
+    if(fadeOutInput){ var fo=parseFloat(fadeOutInput.value); if(!isNaN(fo)) configFadeOut=clamp(fo,0.05,15); }
+    try{ localStorage.setItem('fd.fadeIn', String(configFadeIn)); }catch(e){}
+    try{ localStorage.setItem('fd.fadeOut', String(configFadeOut)); }catch(e){}
+  }
 
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
@@ -164,7 +180,7 @@
     var sec=document.createElement('div'); sec.className='section';
     var wrap=document.createElement('div'); wrap.className='items'; sec.appendChild(wrap);
     arr.forEach(function(x){
-      var it=document.createElement('div'); it.className='item'; it.setAttribute('role','button'); it.tabIndex=0;
+      var it=document.createElement('div'); it.className='item'; // removed role=button to avoid nested interactive controls
       var left=document.createElement('div'); left.className='left';
       var isFav=favs.has(x.id);
       var star=document.createElement('button'); star.className='star'+(isFav?' active':''); star.type='button'; star.setAttribute('aria-label','Favorite'); star.textContent='★';
@@ -197,9 +213,10 @@
             updateTimerPreview();
           }
         }catch(e){}
-        var items=(x.freqs||[]).map(function(f){ return {id:'custom|'+f, name:x.name, frequency:f}; }); if(items.length){ startMulti(items,5.0); scheduleSleepTimerFromUI(); }
+        var items=(x.freqs||[]).map(function(f){ return {id:'custom|'+f, name:x.name, frequency:f}; }); if(items.length){ startMulti(items,configFadeIn); scheduleSleepTimerFromUI(); }
       });
-      it.addEventListener('keydown', function(ev){ if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); it.click(); }});
+      nameEl.tabIndex=0; // focusable name for keyboard play
+      nameEl.addEventListener('keydown', function(ev){ if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); it.click(); }});
       wrap.appendChild(it);
     });
     frag.appendChild(sec);
@@ -806,8 +823,17 @@
     }
     startOutputIfNeeded();
     clearPostStopSchedule();
-    stopAllVoices(true);
-    startMulti([{id:'custom|'+f,name:'Custom',frequency:f}],5.0);
+    var nf=clamp(Number(f)||0,0.1,20000);
+    // If exactly one voice active, retune smoothly
+    if(voices && voices.length===1){
+      try{ var v=voices[0]; v.osc.frequency.setTargetAtTime(nf, audioCtx.currentTime, 0.05); v.meta.frequency=nf; nowPlaying.textContent='Playing '+fmtHz(nf); return; }catch(e){}
+    }
+    // Fade out existing voices individually (light crossfade) without ramping master to 0
+    if(voices && voices.length){
+      try{ var now=audioCtx.currentTime; voices.forEach(function(v){ try{ v.gain.gain.cancelScheduledValues(now); v.gain.gain.setValueAtTime(v.gain.gain.value, now); v.gain.gain.linearRampToValueAtTime(0, now+Math.min(0.5, configFadeOut)); v.osc.stop(now+Math.min(0.6, configFadeOut+0.1)); }catch(e){} }); }catch(e){}
+      voices.length=0; playing=false; lastPlayActive=false;
+    }
+    startMulti([{id:'custom|'+nf,name:'Custom',frequency:nf}],configFadeIn);
   }
 
   function stopTone(silent, fadeSec){ stopAllVoices(silent, fadeSec); }
@@ -939,7 +965,7 @@
     startTone(f);
     scheduleSleepTimerFromUI();
   });
-  stopBtn.addEventListener('click',function(){ stopTone(false, 3.0); clearSleepTimer(); resetTimerUI(); });
+  stopBtn.addEventListener('click',function(){ stopTone(false, configFadeOut); clearSleepTimer(); resetTimerUI(); });
   vol.addEventListener('input',function(){
     volumeVal=Number(vol.value)/100;
     if(gain && audioCtx){
@@ -1012,10 +1038,9 @@
     });
   }
   freqInput.addEventListener('input',function(){
-    if(playing && osc && audioCtx){
+    if(playing && voices && voices.length===1 && audioCtx){
       var f=clamp(Number(freqInput.value)||0,0.1,20000);
-      osc.frequency.setTargetAtTime(f,audioCtx.currentTime,0.02);
-      nowPlaying.textContent='Playing '+fmtHz(f);
+      try{ voices[0].osc.frequency.setTargetAtTime(f,audioCtx.currentTime,0.05); voices[0].meta.frequency=f; nowPlaying.textContent='Playing '+fmtHz(f); }catch(e){}
     }
   });
   // Auto-select text on focus for quick overwrite
@@ -1032,7 +1057,7 @@
   if(playSelectedBtn){
     playSelectedBtn.addEventListener('click',function(){
       var items=DATA.filter(function(x){return selected.has(x.id)});
-      if(items.length){ startOutputIfNeeded(); startMulti(items,5.0); scheduleSleepTimerFromUI(); }
+      if(items.length){ startOutputIfNeeded(); startMulti(items,configFadeIn); scheduleSleepTimerFromUI(); }
     });
   }
   if(settingsBtn){ settingsBtn.addEventListener('click',openSettings); }
@@ -1046,7 +1071,7 @@
   if(settingsSave){
     settingsSave.addEventListener('click',function(){
       var t=(themeLight && themeLight.checked)?'light':'dark';
-      applyTheme(t); saveTheme(t); closeSettings();
+      applyTheme(t); saveTheme(t); saveFadeSettings(); closeSettings();
     });
   }
   if(resetAudioBtn){
@@ -1178,9 +1203,7 @@
         wrap.className='items';
         byLetter[L].forEach(function(x){
           var it=document.createElement('div');
-          it.className='item';
-          it.setAttribute('role','button');
-          it.tabIndex=0;
+          it.className='item'; // removed role=button for better semantics
 
           var left=document.createElement('div');
           left.className='left';
@@ -1246,7 +1269,8 @@
             freqInput.value=String(x.frequency);
             startTone(Number(x.frequency));
           });
-          it.addEventListener('keydown',function(ev){
+          name.tabIndex=0; // focusable for keyboard activation
+          name.addEventListener('keydown',function(ev){
             if(ev.key==='Enter' || ev.key===' '){
               ev.preventDefault();
               freqInput.value=String(x.frequency);
@@ -1293,6 +1317,7 @@
 
   // Apply theme on startup
   applyTheme(loadTheme());
+  loadFadeSettings();
   DATA = dedup(normalizeItems(window.FREQUENCY_DATA||[]));
   buildCategories(DATA);
   renderList('');

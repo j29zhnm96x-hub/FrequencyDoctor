@@ -1,4 +1,4 @@
-const CACHENAME='fd-v19';
+const CACHENAME='fd-v20';
 const ASSETS=[
   '/index.html',
   '/styles.css',
@@ -8,10 +8,19 @@ const ASSETS=[
   '/img/favicon.png'
 ];
 
+// Background audio loops to pre-cache for offline playback
+const AUDIO_LOOPS=[
+  '/audio/ambientalsynth.mp3',
+  '/audio/birds.mp3',
+  '/audio/rain_forest.mp3',
+  '/audio/galactic_waves.mp3',
+  '/audio/white_noise.mp3'
+];
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHENAME)
-      .then(c => c.addAll(ASSETS))
+      .then(c => c.addAll(ASSETS.concat(AUDIO_LOOPS)))
       .then(() => self.skipWaiting())
   );
 });

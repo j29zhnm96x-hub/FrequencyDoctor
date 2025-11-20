@@ -47,6 +47,14 @@
             <button id="resetAudio" class="btn">Reset audio engine</button>
           </div>
         </div>
+        <div class="setting-row">
+          <div class="setting-label">Fade in (s)</div>
+          <div class="setting-field"><input id="fadeInInput" type="number" min="0.1" max="15" step="0.1" value="5" class="timer-input" aria-label="Fade in seconds"></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">Fade out (s)</div>
+          <div class="setting-field"><input id="fadeOutInput" type="number" min="0.1" max="15" step="0.1" value="3" class="timer-input" aria-label="Fade out seconds"></div>
+        </div>
       </div>
       <div class="modal-foot">
         <button id="settingsSave" class="btn primary">Save</button>
@@ -189,7 +197,7 @@
           <button id="tabCustom" class="btn sm">Custom</button>
         </div>
       </div>
-      <div id="now-playing" class="now-playing">Idle</div>
+      <div id="now-playing" class="now-playing" aria-live="polite" role="status">Idle</div>
     </section>
 
     <section class="list" id="list"></section>
