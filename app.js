@@ -57,9 +57,29 @@
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
   }
+  // BG element fade helpers (Safari browser mode)
+  var bgFadeRAF=null;
+  function fadeElementBGTo(target, seconds){
+    try{
+      if(!bgAudio) return;
+      if(seconds<=0){ bgAudio.volume = clamp(target,0,1); return; }
+      if(bgFadeRAF){ try{ cancelAnimationFrame(bgFadeRAF); }catch(e){} bgFadeRAF=null; }
+      var start=bgAudio.volume;
+      var end=clamp(target,0,1);
+      var dur=Math.max(0.01, seconds)*1000;
+      var t0=performance.now();
+      function step(t){
+        var p=Math.min(1,(t-t0)/dur);
+        bgAudio.volume = start + (end-start)*p;
+        if(p<1){ bgFadeRAF=requestAnimationFrame(step); } else { bgFadeRAF=null; }
+      }
+      bgFadeRAF=requestAnimationFrame(step);
+    }catch(e){}
+  }
   function isIOS(){ try{ return /iPad|iPhone|iPod/.test(navigator.userAgent); }catch(e){ return false } }
   function isStandalone(){ try{ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || !!(navigator.standalone); }catch(e){ return false } }
   function preferMediaBG(){ return isIOS() && isStandalone(); }
+  function preferElementBG(){ return isIOS() && !isStandalone(); }
 
   function isBgActive(){
     try{ return !!(bgSource || (bgAudio && !bgAudio.paused)); }catch(e){ return false }
@@ -290,6 +310,8 @@
       gain.gain.setValueAtTime(current, now);
       gain.gain.linearRampToValueAtTime(0, now + Math.max(0.001, seconds));
     }catch(e){}
+    // Mirror fade for element-only BG on Safari browser
+    try{ if(preferElementBG() && bgAudio){ fadeElementBGTo(0, seconds); } }catch(e){}
   }
   function restoreMasterVolume(){
     try{
@@ -544,6 +566,19 @@
     startOutputIfNeeded();
     startKeepAlive();
     clearPostStopSchedule();
+    // Safari browser: use direct HTMLAudioElement for background to keep playing on lock
+    if(preferElementBG()){
+      try{
+        if(!bgAudio){ bgAudio=new Audio(); bgAudio.loop=true; bgAudio.crossOrigin='anonymous'; }
+        bgAudio.src='audio/'+id;
+        bgAudio.volume=Math.max(0, Math.min(1, bgAudio.volume||0));
+        var target=bgVolumeVal;
+        // gentle fade-in
+        fadeElementBGTo(target, 0.4);
+        bgAudio.play().catch(function(){});
+        return;
+      }catch(e){}
+    }
     loadBgBuffer(id).then(function(buffer){
       var points=computeLoopPoints(buffer);
       var now=audioCtx.currentTime;
@@ -650,6 +685,7 @@
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(0,now);
     gain.gain.linearRampToValueAtTime(volumeVal, now+rin);
+    // when in Safari browser background mode, BG is not routed through master; no extra action here
     items.forEach(function(x,idx){
       var osc=audioCtx.createOscillator();
       osc.type='sine';
@@ -695,6 +731,8 @@
       gain.gain.setValueAtTime(v,now);
       gain.gain.linearRampToValueAtTime(0, now+rout);
     }
+    // Also fade BG element in Safari browser mode
+    try{ if(!silent && preferElementBG() && bgAudio){ fadeElementBGTo(0, rout); } }catch(e){}
     var copy=voices.slice();
     voices.length=0;
     copy.forEach(function(v){
@@ -788,6 +826,9 @@
   if(bgLoopVolume){
     bgLoopVolume.addEventListener('input',function(){
       bgVolumeVal=Number(bgLoopVolume.value)/100;
+      if(preferElementBG() && bgAudio){
+        fadeElementBGTo(bgVolumeVal, 0.05);
+      }
       if(bgGain && audioCtx){
         var now=audioCtx.currentTime;
         bgGain.gain.cancelScheduledValues(now);
