@@ -14,6 +14,7 @@
   var clearSelectedBtn=document.getElementById('clearSelected');
   var bgLoopSelect=document.getElementById('bgLoopSelect');
   var bgLoopVolume=document.getElementById('bgLoopVolume');
+  var freqVolume=document.getElementById('freqVolume');
   var audioOut=document.getElementById('audioOut');
   var sleepTimerSel=document.getElementById('sleepTimer');
   var timerCustomWrap=document.getElementById('timerCustomWrap');
@@ -43,6 +44,7 @@
   var bgGain=null, bgSource=null, bgMediaSource=null;
   var bgBuffers=Object.create(null);
   var bgVolumeVal=bgLoopVolume? Number(bgLoopVolume.value)/100 : 0.4;
+  var freqVolumeVal=freqVolume? Number(freqVolume.value)/100 : 1.0;
   var DATA=[];
   var voices=[]; // active voices for multi-play
   var selected=new Set(); // selected item ids
@@ -654,12 +656,12 @@
       osc.frequency.setValueAtTime(Number(x.frequency),now);
       var g=audioCtx.createGain();
       g.gain.setValueAtTime(0,now);
-      g.gain.linearRampToValueAtTime(perGain, now+rin);
+      g.gain.linearRampToValueAtTime(perGain*freqVolumeVal, now+rin);
       var panVal = (n===1)?0 : (n===2? (idx===0?-1:1) : (-1 + (2*idx/(n-1))));
       var p=createPanner(panVal);
       osc.connect(g); g.connect(p); p.connect(gain);
       osc.start();
-      voices.push({osc:osc,gain:g,panner:p,pan:panVal,meta:x});
+      voices.push({osc:osc,gain:g,panner:p,pan:panVal,meta:x,baseGain:perGain});
     });
     playing = voices.length>0;
     lastPlayActive = playing;
@@ -790,6 +792,15 @@
         var now=audioCtx.currentTime;
         bgGain.gain.cancelScheduledValues(now);
         bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.03);
+      }
+    });
+  }
+  if(freqVolume){
+    freqVolume.addEventListener('input', function(){
+      freqVolumeVal=Number(freqVolume.value)/100;
+      if(audioCtx && voices && voices.length){
+        var now=audioCtx.currentTime;
+        voices.forEach(function(v){ try{ v.gain.gain.cancelScheduledValues(now); v.gain.gain.setTargetAtTime((v.baseGain||1)*freqVolumeVal, now, 0.03); }catch(e){} });
       }
     });
   }
