@@ -45,6 +45,8 @@
   var DATA=[];
   var voices=[]; // active voices for multi-play
   var selected=new Set(); // selected item ids
+  var outputMode=null; // 'direct' | 'media'
+  var keepAliveInterval=null; // watchdog to keep sink alive on iOS PWA
 
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
@@ -109,7 +111,7 @@
       gain=audioCtx.createGain();
       gain.gain.value=0;
     }
-    // Build output chain: gain -> compressor -> destination
+    // Build output chain: gain -> compressor -> (wired later)
     if(audioCtx && !masterComp){
       try{
         masterComp=audioCtx.createDynamicsCompressor();
@@ -118,7 +120,6 @@
         masterComp.ratio.setValueAtTime(4, audioCtx.currentTime);
         masterComp.attack.setValueAtTime(0.003, audioCtx.currentTime);
         masterComp.release.setValueAtTime(0.25, audioCtx.currentTime);
-        masterComp.connect(audioCtx.destination);
       }catch(e){}
     }
     if(audioCtx && masterComp && !directConnected){
@@ -130,18 +131,66 @@
       // route background loop into master gain
       if(gain) bgGain.connect(gain);
     }
+    // ensure output is wired correctly for this environment
+    wireOutput();
+  }
+
+  function wireOutput(){
+    try{
+      if(!audioCtx || !masterComp) return;
+      var wantMedia = preferMediaBG(); // iOS standalone -> use MediaStreamDestination
+      if(wantMedia){
+        if(outputMode !== 'media'){
+          try{ masterComp.disconnect(); }catch(e){}
+          try{ if(!mediaDest){ mediaDest = audioCtx.createMediaStreamDestination(); } }catch(e){}
+          try{ masterComp.connect(mediaDest); }catch(e){}
+          if(audioOut){
+            try{ if(audioOut.srcObject !== mediaDest.stream){ audioOut.srcObject = mediaDest.stream; } }catch(e){}
+          }
+          outputMode='media';
+        }
+      } else {
+        if(outputMode !== 'direct'){
+          try{ masterComp.disconnect(); }catch(e){}
+          try{ masterComp.connect(audioCtx.destination); }catch(e){}
+          outputMode='direct';
+        }
+      }
+    }catch(e){}
   }
 
   function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
   function fmtHz(v){return Number(v).toFixed(2)+" Hz"}
   function startOutputIfNeeded(){
     if(!audioOut) return;
+    wireOutput();
     if(!(audioOut.srcObject || audioOut.src)) return; // nothing assigned -> no-op
     try{
       var p=audioOut.play();
       if(p && p.catch){ p.catch(function(){}) }
     }catch(e){}
   }
+  function ensureOutputPlaying(){
+    try{
+      if(preferMediaBG()){
+        ensureAudio();
+        if(audioCtx && audioCtx.state==='suspended'){
+          try{ audioCtx.resume(); }catch(e){}
+        }
+        if(audioOut && (audioOut.paused || audioOut.readyState<2)){
+          try{ var pp=audioOut.play(); if(pp && pp.catch){ pp.catch(function(){}) } }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  function startKeepAlive(){
+    try{
+      if(!preferMediaBG()) { stopKeepAlive(); return; }
+      if(keepAliveInterval) return;
+      keepAliveInterval = setInterval(function(){ ensureOutputPlaying(); }, 3000);
+    }catch(e){}
+  }
+  function stopKeepAlive(){ try{ if(keepAliveInterval){ clearInterval(keepAliveInterval); } }catch(e){} keepAliveInterval=null; }
   function updateSearchClear(){ if(searchClear){ searchClear.style.display = (search && search.value)? 'inline-flex' : 'none'; } }
   function hasSelection(){
     try{
@@ -314,6 +363,7 @@
     }finally{
       bgSource=null;
       bgMediaSource=null;
+      if(!playing){ stopKeepAlive(); }
     }
   }
 
@@ -395,21 +445,8 @@
       try{ audioCtx.resume(); }catch(e){}
     }
     startOutputIfNeeded();
+    startKeepAlive();
     clearPostStopSchedule();
-    if(preferMediaBG()){
-      try{
-        var srcUrl='audio/'+id;
-        if(!bgAudio){ bgAudio=new Audio(); bgAudio.crossOrigin='anonymous'; bgAudio.loop=true; }
-        bgAudio.src=srcUrl;
-        if(!bgMediaSource){ bgMediaSource=audioCtx.createMediaElementSource(bgAudio); bgMediaSource.connect(bgGain); }
-        var now=audioCtx.currentTime;
-        bgGain.gain.cancelScheduledValues(now);
-        bgGain.gain.setValueAtTime(Math.max(0,bgGain.gain.value), now);
-        bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.05);
-        bgAudio.play().catch(function(){});
-        return;
-      }catch(e){}
-    }
     loadBgBuffer(id).then(function(buffer){
       var points=computeLoopPoints(buffer);
       var now=audioCtx.currentTime;
@@ -503,6 +540,7 @@
       try{audioCtx.resume()}catch(e){}
     }
     startOutputIfNeeded();
+    startKeepAlive();
     clearPostStopSchedule();
     voices.forEach(function(v){ try{v.osc.stop()}catch(e){} try{v.osc.disconnect()}catch(e){} });
     voices.length=0;
@@ -694,6 +732,13 @@
     helpModal.addEventListener('click', function(ev){ var t=ev.target; if(t && t.getAttribute && t.getAttribute('data-close')) closeHelp(); });
   }
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeHelp(); });
+
+  // Lifecycle guards: reassert playback on visibility/page changes (iOS PWA)
+  try{
+    document.addEventListener('visibilitychange', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
+    window.addEventListener('pageshow', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
+    window.addEventListener('pagehide', function(){ if(preferMediaBG()){ ensureOutputPlaying(); startKeepAlive(); } });
+  }catch(e){}
 
   // One-time audio unlock for stricter browsers (iOS Safari, etc.)
   (function(){
