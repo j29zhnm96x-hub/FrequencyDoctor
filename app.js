@@ -33,6 +33,7 @@
   var settingsSave=document.getElementById('settingsSave');
   var themeDark=document.getElementById('themeDark');
   var themeLight=document.getElementById('themeLight');
+  var resetAudioBtn=document.getElementById('resetAudio');
 
   var audioCtx=null,osc=null,gain=null,playing=false, mediaDest=null;
   var directConnected=false; // guard to avoid multiple connection into output chain
@@ -46,7 +47,10 @@
   var voices=[]; // active voices for multi-play
   var selected=new Set(); // selected item ids
   var outputMode=null; // 'direct' | 'media'
+  var outputOverride=null; // force 'direct' or 'media' temporarily
+  var outputOverrideTimer=null;
   var keepAliveInterval=null; // watchdog to keep sink alive on iOS PWA
+  var lastPlayItems=[]; var lastRampIn=5.0; var lastBgId=''; var lastPlayActive=false; var resetting=false;
 
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
@@ -154,7 +158,7 @@
   function wireOutput(){
     try{
       if(!audioCtx || !masterComp) return;
-      var wantMedia = preferMediaBG(); // iOS standalone -> use MediaStreamDestination
+      var wantMedia = outputOverride? (outputOverride==='media') : preferMediaBG(); // iOS standalone -> use MediaStreamDestination
       if(wantMedia){
         if(outputMode !== 'media'){
           try{ masterComp.disconnect(); }catch(e){}
@@ -174,22 +178,50 @@
       }
     }catch(e){}
   }
+  function setOutputOverride(mode, ttlMs){
+    try{
+      outputOverride = mode || null;
+      if(outputOverrideTimer){ try{ clearTimeout(outputOverrideTimer); }catch(e){} outputOverrideTimer=null; }
+      if(mode && ttlMs>0){ outputOverrideTimer = setTimeout(function(){ outputOverride=null; outputOverrideTimer=null; wireOutput(); }, ttlMs); }
+      wireOutput();
+    }catch(e){}
+  }
 
   function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
   function fmtHz(v){return Number(v).toFixed(2)+" Hz"}
+  function isMediaOutputBroken(){
+    try{
+      if(!preferMediaBG()) return false;
+      if(!audioOut) return true;
+      if(!mediaDest || !mediaDest.stream) return true;
+      if(audioOut.srcObject !== mediaDest.stream) return true;
+      var trks = mediaDest.stream.getAudioTracks ? mediaDest.stream.getAudioTracks() : [];
+      if(!trks || trks.length===0) return true;
+      var t=trks[0];
+      if(t && t.readyState && t.readyState!=='live') return true;
+      return false;
+    }catch(e){ return false }
+  }
   function startOutputIfNeeded(){
     if(!audioOut) return;
     wireOutput();
+    if(isMediaOutputBroken()){ hardResetAudioEngine(true); return; }
     if(!(audioOut.srcObject || audioOut.src)) return; // nothing assigned -> no-op
     try{
       var p=audioOut.play();
       if(p && p.catch){ p.catch(function(){}) }
     }catch(e){}
   }
+  var brokenCount=0;
   function ensureOutputPlaying(){
     try{
       if(preferMediaBG()){
         ensureAudio();
+        if(isMediaOutputBroken()){
+          brokenCount++;
+          if(brokenCount>=2){ setOutputOverride('direct', 20000); }
+          hardResetAudioEngine(true); return;
+        } else { brokenCount=0; }
         if(audioCtx && audioCtx.state==='suspended'){
           try{ audioCtx.resume(); }catch(e){}
         }
@@ -265,9 +297,44 @@
       gain.gain.setTargetAtTime(volumeVal, now, 0.03);
     }catch(e){}
   }
+  function hardResetAudioEngine(autoplay){
+    if(resetting) return; resetting=true;
+    try{
+      try{ stopKeepAlive(); }catch(e){}
+      try{ if(audioOut){ audioOut.pause(); audioOut.srcObject=null; audioOut.removeAttribute('src'); audioOut.load && audioOut.load();
+        // Recreate the audio element to avoid stale sinks
+        var oldOut=audioOut; var parent=oldOut && oldOut.parentNode;
+        if(parent){ var neo=document.createElement('audio'); neo.id='audioOut'; neo.setAttribute('playsinline',''); neo.style.display='none'; parent.replaceChild(neo, oldOut); audioOut=neo; }
+      } }catch(e){}
+      if(audioCtx){ try{ audioCtx.close(); }catch(e){} }
+      audioCtx=null; gain=null; masterComp=null; mediaDest=null; directConnected=false; outputMode=null; bgGain=null; bgSource=null; bgMediaSource=null;
+      ensureAudio(); wireOutput();
+      if(autoplay){
+        // restart BG first so fades pick it up too
+        try{ if(bgLoopSelect && bgLoopSelect.value){ lastBgId=bgLoopSelect.value; startBgLoop(lastBgId); } }catch(e){}
+        // restart tones if they were active
+        try{ if(lastPlayActive && lastPlayItems && lastPlayItems.length){ startMulti(lastPlayItems.slice(), Math.min(1.0, lastRampIn||0.5)); } }catch(e){}
+      }
+      attachAudioOutHandlers();
+      startKeepAlive(); ensureOutputPlaying();
+      verifyResetRecovery();
+    }catch(e){} finally{ resetting=false; }
+  }
+  function verifyResetRecovery(){
+    try{
+      if(!preferMediaBG()) return;
+      setTimeout(function(){
+        if(isMediaOutputBroken() || (audioOut && audioOut.paused)){
+          // Fall back to direct for a short period to recover UI-level audio, then auto-clear
+          setOutputOverride('direct', 20000);
+          ensureAudio(); wireOutput(); startOutputIfNeeded();
+        }
+      }, 1200);
+    }catch(e){}
+  }
   function stopCountdownDisplay(){
     if(countdownInterval){ try{clearInterval(countdownInterval)}catch(e){} countdownInterval=null; }
-    if(timerCountdown){ timerCountdown.hidden=true; timerCountdown.textContent='00:00:00'; }
+    if(timerCountdown){ timerCountdown.hidden=false; timerCountdown.textContent='00:00:00'; }
   }
   function formatClock(ms){
     ms=Math.max(0, Math.floor(ms));
@@ -292,6 +359,7 @@
         }, 500);
       }
     } else {
+      // Always visible when Off, show 00:00:00
       stopCountdownDisplay();
     }
   }
@@ -466,6 +534,7 @@
   function startBgLoop(id){
     stopBgLoop();
     if(!id){ return; }
+    try{ lastBgId=id; }catch(e){}
     ensureAudio();
     if(audioCtx && audioCtx.state==='suspended'){
       try{ audioCtx.resume(); }catch(e){}
@@ -568,6 +637,7 @@
     startOutputIfNeeded();
     startKeepAlive();
     clearPostStopSchedule();
+    try{ lastPlayItems = items.slice(); lastRampIn = (typeof rampIn==='number'? rampIn:5.0); }catch(e){}
     voices.forEach(function(v){ try{v.osc.stop()}catch(e){} try{v.osc.disconnect()}catch(e){} });
     voices.length=0;
     var n=items.length;
@@ -592,6 +662,7 @@
       voices.push({osc:osc,gain:g,panner:p,pan:panVal,meta:x});
     });
     playing = voices.length>0;
+    lastPlayActive = playing;
     updateUI();
     // Ensure background FX restarts if selected and not currently active
     try{
@@ -605,7 +676,7 @@
         var freqs=items.map(function(x){return Number(x.frequency).toFixed(2)+' Hz'}).join(' · ');
         navigator.mediaSession.metadata=new window.MediaMetadata({title: 'Frequencies', artist: 'FrequencyDoctor', album: 'Tones', artwork: []});
         navigator.mediaSession.playbackState= playing ? 'playing' : 'paused';
-        navigator.mediaSession.setActionHandler('play', function(){ startOutputIfNeeded(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); }});
+        navigator.mediaSession.setActionHandler('play', function(){ if(preferMediaBG()){ hardResetAudioEngine(true); } else { startOutputIfNeeded(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } } });
         navigator.mediaSession.setActionHandler('pause', function(){ stopAllVoices(false); });
         navigator.mediaSession.setActionHandler('stop', function(){ stopAllVoices(false); });
       }
@@ -628,7 +699,7 @@
       try{ v.osc.stop(now + rout + 0.001); }catch(e){}
       try{ v.osc.disconnect(); }catch(e){}
     });
-    playing=false;
+    playing=false; lastPlayActive=false;
     updateUI();
     clearSleepTimer();
     clearPostStopSchedule();
@@ -706,6 +777,7 @@
     });
     // initialize state on load
     applyTimerCustomState();
+    stopCountdownDisplay();
   }
   // Ensure H/M are populated at load
   initTimerHMS();
@@ -759,6 +831,9 @@
       applyTheme(t); saveTheme(t); closeSettings();
     });
   }
+  if(resetAudioBtn){
+    resetAudioBtn.addEventListener('click', function(){ try{ hardResetAudioEngine(true); }catch(e){} closeSettings(); });
+  }
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') closeSettings(); });
 
   // Help modal wiring
@@ -792,14 +867,16 @@
     }catch(e){}
   })();
 
-  // audioOut error recovery
-  try{
-    if(audioOut){
+  function attachAudioOutHandlers(){
+    try{
+      if(!audioOut) return;
       ['pause','stalled','waiting','error','emptied'].forEach(function(ev){
-        audioOut.addEventListener(ev, function(){ if(preferMediaBG()){ ensureAudio(); recoverAudioGraph(); ensureOutputPlaying(); startKeepAlive(); } }, {passive:true});
+        try{ audioOut.addEventListener(ev, function(){ if(preferMediaBG()){ hardResetAudioEngine(true); } }, {passive:true}); }catch(e){}
       });
-    }
-  }catch(e){}
+    }catch(e){}
+  }
+  // audioOut error recovery
+  attachAudioOutHandlers();
 
   if(clearSelectedBtn){
     clearSelectedBtn.addEventListener('click',function(){
