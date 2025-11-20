@@ -35,7 +35,8 @@
   var themeLight=document.getElementById('themeLight');
 
   var audioCtx=null,osc=null,gain=null,playing=false, mediaDest=null;
-  var directConnected=false; // guard to avoid multiple destination connections
+  var directConnected=false; // guard to avoid multiple connection into output chain
+  var masterComp=null; // dynamics compressor to prevent clipping/distortion
   var volumeVal=Number(vol.value)/100;
   var bgAudio=null; // fallback media element
   var bgGain=null, bgSource=null, bgMediaSource=null;
@@ -48,6 +49,9 @@
   function itemId(x){
     return x.id || (String(x.name||'').trim()+"|"+String(x.frequency));
   }
+  function isIOS(){ try{ return /iPad|iPhone|iPod/.test(navigator.userAgent); }catch(e){ return false } }
+  function isStandalone(){ try{ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || !!(navigator.standalone); }catch(e){ return false } }
+  function preferMediaBG(){ return isIOS() && isStandalone(); }
 
   function isBgActive(){
     try{ return !!(bgSource || (bgAudio && !bgAudio.paused)); }catch(e){ return false }
@@ -105,15 +109,20 @@
       gain=audioCtx.createGain();
       gain.gain.value=0;
     }
-    if(audioCtx && !directConnected){
-      try{ gain.connect(audioCtx.destination); directConnected=true; }catch(e){}
-    }
-    if(audioCtx && !mediaDest){
+    // Build output chain: gain -> compressor -> destination
+    if(audioCtx && !masterComp){
       try{
-        mediaDest=audioCtx.createMediaStreamDestination();
-        if(gain) gain.connect(mediaDest);
-        if(audioOut){ audioOut.srcObject=mediaDest.stream; audioOut.crossOrigin='anonymous'; }
+        masterComp=audioCtx.createDynamicsCompressor();
+        masterComp.threshold.setValueAtTime(-12, audioCtx.currentTime);
+        masterComp.knee.setValueAtTime(24, audioCtx.currentTime);
+        masterComp.ratio.setValueAtTime(4, audioCtx.currentTime);
+        masterComp.attack.setValueAtTime(0.003, audioCtx.currentTime);
+        masterComp.release.setValueAtTime(0.25, audioCtx.currentTime);
+        masterComp.connect(audioCtx.destination);
       }catch(e){}
+    }
+    if(audioCtx && masterComp && !directConnected){
+      try{ gain.connect(masterComp); directConnected=true; }catch(e){}
     }
     if(audioCtx && !bgGain){
       bgGain=audioCtx.createGain();
@@ -127,6 +136,7 @@
   function fmtHz(v){return Number(v).toFixed(2)+" Hz"}
   function startOutputIfNeeded(){
     if(!audioOut) return;
+    if(!(audioOut.srcObject || audioOut.src)) return; // nothing assigned -> no-op
     try{
       var p=audioOut.play();
       if(p && p.catch){ p.catch(function(){}) }
@@ -386,6 +396,20 @@
     }
     startOutputIfNeeded();
     clearPostStopSchedule();
+    if(preferMediaBG()){
+      try{
+        var srcUrl='audio/'+id;
+        if(!bgAudio){ bgAudio=new Audio(); bgAudio.crossOrigin='anonymous'; bgAudio.loop=true; }
+        bgAudio.src=srcUrl;
+        if(!bgMediaSource){ bgMediaSource=audioCtx.createMediaElementSource(bgAudio); bgMediaSource.connect(bgGain); }
+        var now=audioCtx.currentTime;
+        bgGain.gain.cancelScheduledValues(now);
+        bgGain.gain.setValueAtTime(Math.max(0,bgGain.gain.value), now);
+        bgGain.gain.setTargetAtTime(bgVolumeVal, now, 0.05);
+        bgAudio.play().catch(function(){});
+        return;
+      }catch(e){}
+    }
     loadBgBuffer(id).then(function(buffer){
       var points=computeLoopPoints(buffer);
       var now=audioCtx.currentTime;
