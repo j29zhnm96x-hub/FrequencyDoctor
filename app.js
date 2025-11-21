@@ -1165,14 +1165,18 @@
     });
     if(q){
       items=items.filter(function(x){
-        var hay=[
-          String(x.name||'').toLowerCase(),
-          String(x.frequency),
-          String(x.category||'').toLowerCase(),
-          String(x.description||'').toLowerCase(),
-          (Array.isArray(x.tags)?x.tags.join(' '):'').toLowerCase()
-        ].join(' ');
-        return hay.includes(q);
+        var idx=x.searchIndex;
+        if(!idx){
+          idx=[
+            String(x.name||'').toLowerCase(),
+            String(x.frequency),
+            String(x.category||'').toLowerCase(),
+            String(x.description||'').toLowerCase(),
+            (Array.isArray(x.tags)?x.tags.join(' '):'').toLowerCase()
+          ].join(' ');
+          x.searchIndex=idx;
+        }
+        return idx.indexOf(q)!==-1;
       });
     }
     if(categorySel && categorySel.value){
@@ -1290,7 +1294,13 @@
     listEl.replaceChildren(frag);
   }
 
-  search.addEventListener('input',function(){renderList(search.value); updateSearchClear();});
+  // Debounced search input to reduce repeated full list DOM rebuilds on iOS
+  var searchDebounce=null;
+  search.addEventListener('input',function(){
+    if(searchDebounce) clearTimeout(searchDebounce);
+    var val=search.value;
+    searchDebounce=setTimeout(function(){ renderList(val); updateSearchClear(); },120);
+  });
   if(searchClear){ searchClear.addEventListener('click', function(){ search.value=''; renderList(''); updateSearchClear(); try{search.focus()}catch(e){} }); }
   if(categorySel){categorySel.addEventListener('change',function(){renderList(search.value)})}
   if(onlyFavs){onlyFavs.addEventListener('change',function(){renderList(search.value); renderCustomList();})}
@@ -1323,6 +1333,16 @@
   applyTheme(loadTheme());
   loadFadeSettings();
   DATA = dedup(normalizeItems(window.FREQUENCY_DATA||[]));
+  // Precompute search index strings once for faster filtering
+  DATA.forEach(function(x){
+    x.searchIndex=[
+      String(x.name||'').toLowerCase(),
+      String(x.frequency),
+      String(x.category||'').toLowerCase(),
+      String(x.description||'').toLowerCase(),
+      (Array.isArray(x.tags)?x.tags.join(' '):'').toLowerCase()
+    ].join(' ');
+  });
   buildCategories(DATA);
   renderList('');
   updateUI();
