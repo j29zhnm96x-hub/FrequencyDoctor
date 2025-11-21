@@ -49,7 +49,7 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .search-clear:hover{color:#e2e8f0;background:#0b122033}
 .search-clear:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
-.multi-actions-right{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+  .multi-actions-right{display:flex;align-items:center;gap:.6rem;flex-wrap:nowrap;white-space:nowrap}
 .freq-input label{display:block;color:var(--muted);font-size:.85rem;margin-bottom:.35rem}
 .freq-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 #freq{flex:0 0 auto;width:11ch;max-width:140px;background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:10px;padding:.6rem .7rem;outline:none}
@@ -67,21 +67,26 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:.5rem .85rem;
+  padding:.4rem .6rem;
   font-size:0.95rem;
   line-height:1;
-  min-height:44px;
+  min-height:40px;
   border-radius:10px;
   white-space:nowrap;
+  width:auto;
 }
-.multi-actions-right .btn.sm{min-width:110px;padding:.45rem .7rem;font-size:0.9rem}
+.multi-actions-right .btn.sm{padding:.35rem .55rem;font-size:0.9rem}
 .multi-actions-right .btn[disabled]{opacity:.55;cursor:not-allowed}
-.multi-actions-right .btn.primary{min-width:140px;padding:.55rem .9rem;font-weight:700;box-shadow:0 8px 20px rgba(14,165,233,.12)}
+.multi-actions-right .btn.primary{padding:.45rem .7rem;font-weight:700;box-shadow:0 6px 16px rgba(14,165,233,.12)}
 .multi-actions-right .btn:not(.primary){background:transparent;border:1px solid #334155}
 .multi-actions-right .btn.primary{background:linear-gradient(180deg,var(--brand),var(--brand2));border-color:transparent;color:#001018}
 
 /* Tweak selected count alignment */
 .sel-count{display:inline-flex;align-items:center;gap:.5rem;padding-right:.4rem}
+
+/* Make the favourites checkbox compact and positioned logically */
+.fav-toggle{display:inline-flex;align-items:center;gap:.4rem;margin:0;font-size:0.95rem}
+.fav-toggle input[type=checkbox]{width:16px;height:16px;margin:0}
 .sliders{margin-top:.8rem}
 #volume{width:100%;appearance:none;height:6px;background:#0b1220;border:1px solid #334155;border-radius:999px}
 .now-playing{margin-top:.6rem;color:var(--muted);font-size:.9rem;overflow-wrap:anywhere;word-break:break-word}

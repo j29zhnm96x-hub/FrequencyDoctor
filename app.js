@@ -77,6 +77,8 @@
   var keepAliveInterval=null; // watchdog to keep sink alive on iOS PWA
   var lastPlayItems=[]; var lastRampIn=5.0; var lastBgId=''; var lastPlayActive=false; var resetting=false;
   var configFadeIn=5.0; var configFadeOut=3.0; // user adjustable
+  // audio is only allowed to be created/resumed after a user gesture (unlock)
+  var audioUnlocked = false;
 
   function loadFadeSettings(){
     try{ var fi=parseFloat(localStorage.getItem('fd.fadeIn')); if(!isNaN(fi)) configFadeIn=clamp(fi,0.05,15); }catch(e){}
@@ -315,6 +317,8 @@
   var favs=loadFavs();
 
   function ensureAudio(){
+    // Do not create/resume AudioContext until user gesture has unlocked audio.
+    if(!audioUnlocked) return;
     if(audioCtx && audioCtx.state==='closed'){
       audioCtx=null; gain=null; masterComp=null; mediaDest=null; directConnected=false; outputMode=null;
     }
@@ -1114,7 +1118,7 @@
     var unlocked=false;
     function unlock(){
       if(unlocked) return; unlocked=true;
-      try{ ensureAudio(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } recoverAudioGraph(); startOutputIfNeeded(); }catch(e){}
+      try{ audioUnlocked = true; ensureAudio(); if(audioCtx && audioCtx.state==='suspended'){ audioCtx.resume(); } recoverAudioGraph(); startOutputIfNeeded(); }catch(e){}
       try{ document.removeEventListener('pointerdown',unlock); document.removeEventListener('keydown',unlock); document.removeEventListener('touchstart',unlock); }catch(e){}
     }
     try{
