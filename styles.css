@@ -120,6 +120,24 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
   .timer-group .select{font-size:13px;padding:.3rem .45rem}
   .timer-group .timer-countdown{font-size:12px;padding:.25rem .4rem;min-width:5.5ch}
 }
+/* Extra compact tweaks for very narrow viewports (iPhone) to avoid layout zoom/overflow */
+@media(max-width:420px){
+  .controls{padding:.6rem .6rem}
+  .search{padding:.45rem .55rem}
+  .brand-name{font-size:1rem}
+  .freq-row{gap:.35rem}
+  #freq{width:7.5ch;max-width:86px;padding:.45rem .55rem}
+  .btn{padding:.3rem .5rem;font-size:14px}
+  .btn.primary{padding:.4rem .6rem}
+  .timer-group .select{font-size:12px;padding:.2rem .35rem}
+  .timer-group .timer-countdown{font-size:11px;padding:.2rem .35rem;min-width:4.5ch}
+  .multi-actions-right .btn{padding:.28rem .45rem;min-height:36px}
+  .multi-actions-right{gap:.35rem}
+  .filter-row label, .filter-row .select{font-size:14px}
+  .filter-col{gap:.2rem}
+  .fav-toggle{font-size:14px}
+  .container{padding-left:calc(env(safe-area-inset-left) + .6rem);padding-right:calc(env(safe-area-inset-right) + .6rem)}
+}
 .bgfx-controls{margin-top:.8rem;display:flex;flex-direction:column;gap:.35rem}
 .bgfx-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 .bgfx-select{min-width:0;flex:1}
