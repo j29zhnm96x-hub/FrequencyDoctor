@@ -1,4 +1,4 @@
-const CACHENAME='fd-v21';
+const CACHENAME='fd-v22';
 const ASSETS=[
   '/index.html',
   '/styles.css',
@@ -42,61 +42,59 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  
   const url = new URL(req.url);
-  const accept = req.headers.get('accept') || '';
-  const isHTML = req.mode === 'navigate' || accept.includes('text/html');
-
-  // Network-first for HTML/navigation
-  if (isHTML) {
+  
+  // 1. HTML: Network First, fall back to cache
+  if (req.mode === 'navigate' || req.headers.get('accept').includes('text/html')) {
     e.respondWith(
-      fetch(new Request(req.url, { cache: 'no-store', credentials: 'same-origin' }))
-        .then(r => {
-          const copy = r.clone();
-          caches.open(CACHENAME).then(c => c.put('/index.html', copy)).catch(()=>{});
-          return r;
+      fetch(req)
+        .then(networkRes => {
+          const clone = networkRes.clone();
+          caches.open(CACHENAME).then(c => c.put('/index.html', clone));
+          return networkRes;
         })
         .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // For cross-origin, just try network, fall back to cache
-  if (url.origin !== location.origin) {
-    e.respondWith(fetch(req).catch(() => caches.match(req)));
-    return;
-  }
+  // 2. Same-origin assets
+  if (url.origin === location.origin) {
+    const pathname = url.pathname;
+    const ext = pathname.includes('.') ? pathname.split('.').pop().toLowerCase() : '';
+    const immutableExts = new Set(['mp3','wav','ogg','png','jpg','jpeg','gif','svg','ico','webp']);
 
-  const pathname = url.pathname;
-  const ext = pathname.includes('.') ? pathname.split('.').pop().toLowerCase() : '';
-  const cacheFirstExts = new Set(['png','jpg','jpeg','gif','svg','ico','mp3','wav','ogg','webp']);
+    // Immutable assets (images, audio): Cache First, fall back to network
+    if (immutableExts.has(ext)) {
+      e.respondWith(
+        caches.match(req).then(cached => {
+          if (cached) return cached;
+          return fetch(req).then(networkRes => {
+            const clone = networkRes.clone();
+            caches.open(CACHENAME).then(c => c.put(req, clone));
+            return networkRes;
+          });
+        })
+      );
+      return;
+    }
 
-  if (cacheFirstExts.has(ext)) {
-    // Cache-first for media and icons
+    // Mutable assets (JS, CSS, JSON): Stale-While-Revalidate
+    // Return cached version immediately if available, but update cache in background
     e.respondWith(
       caches.match(req).then(cached => {
-        if (cached) return cached;
-        return fetch(req).then(r => {
-          const copy = r.clone();
-          caches.open(CACHENAME).then(c => c.put(req, copy)).catch(()=>{});
-          return r;
+        const networkFetch = fetch(req).then(networkRes => {
+          const clone = networkRes.clone();
+          caches.open(CACHENAME).then(c => c.put(req, clone));
+          return networkRes;
         });
+        return cached || networkFetch;
       })
     );
     return;
   }
 
-  // Cache-first for JS/CSS for instant loads on iPhone (SW will update cache in background on activate)
-  e.respondWith(
-    caches.match(req).then(cached => {
-      const fetchPromise = fetch(new Request(req, { cache: 'no-store' }))
-        .then(r => {
-          const copy = r.clone();
-          caches.open(CACHENAME).then(c => c.put(req, copy)).catch(()=>{});
-          return r;
-        })
-        .catch(()=> null);
-      // Return cached immediately if available, else wait for network
-      return cached || fetchPromise;
-    })
-  );
+  // 3. Cross-origin: Network only (or simple cache fallback)
+  e.respondWith(fetch(req).catch(() => caches.match(req)));
 });
