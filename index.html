@@ -155,19 +155,11 @@
           </div>
         </div>
 
-        <div class="multi-actions">
-          <div class="multi-actions-right">
-            <button id="clearSelected" class="btn sm">Clear selections</button>
-            <button id="playSelected" class="btn sm">Play Selected</button>
-          </div>
-        </div>
-
-        <div class="multi-actions multi-actions-secondary">
-          <div></div>
-          <div class="multi-actions-right">
-            <button id="saveSelectionBtn" class="btn sm">Save selection as custom</button>
-            <button id="createCustomBtn" class="btn sm primary">Create Custom Frequency</button>
-          </div>
+        <div class="actions-grid">
+          <button id="playSelected" class="btn sm">Play Selected</button>
+          <button id="clearSelected" class="btn sm">Clear selections</button>
+          <button id="saveSelectionBtn" class="btn sm">Save selection as custom</button>
+          <button id="createCustomBtn" class="btn sm primary">Create Custom Frequency</button>
         </div>
 
         <div class="filters">
@@ -194,14 +186,14 @@
         <div id="now-playing" class="now-playing" aria-live="polite" role="status">Idle</div>
       </div>
 
-      <div class="sliders">
-        <label for="volume">Volume</label>
-        <input id="volume" type="range" min="0" max="100" value="20">
-      </div>
       <div class="bgfx-controls">
         <div class="bgfx-row">
           <label for="bgLoopSelect">Background FX</label>
           <select id="bgLoopSelect" class="select bgfx-select"></select>
+        </div>
+        <div class="bgfx-row">
+          <label for="volume">Volume</label>
+          <input id="volume" type="range" min="0" max="100" value="20">
         </div>
         <div class="bgfx-row">
           <label for="bgLoopVolume">BG volume</label>
