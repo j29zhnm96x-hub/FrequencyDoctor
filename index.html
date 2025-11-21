@@ -120,6 +120,14 @@
     </div>
   </div>
   <main class="container">
+    <div id="loadingSkeleton" class="loading-skeleton" aria-hidden="true">
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+    </div>
     <section class="controls">
       <div class="search-wrap">
         <input id="search" class="search" type="search" placeholder="Search conditions or frequencies">
@@ -250,7 +258,7 @@
     </div>
   </div>
   <audio id="audioOut" playsinline style="display:none"></audio>
-  <script src="data/frequencies.js"></script>
-  <script src="app.js"></script>
+  <script src="data/frequencies.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

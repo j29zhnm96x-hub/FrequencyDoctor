@@ -1,4 +1,4 @@
-const CACHENAME='fd-v20';
+const CACHENAME='fd-v21';
 const ASSETS=[
   '/index.html',
   '/styles.css',
@@ -85,14 +85,18 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Network-first for JS/CSS/etc.
+  // Cache-first for JS/CSS for instant loads on iPhone (SW will update cache in background on activate)
   e.respondWith(
-    fetch(new Request(req, { cache: 'no-store' }))
-      .then(r => {
-        const copy = r.clone();
-        caches.open(CACHENAME).then(c => c.put(req, copy)).catch(()=>{});
-        return r;
-      })
-      .catch(() => caches.match(req))
+    caches.match(req).then(cached => {
+      const fetchPromise = fetch(new Request(req, { cache: 'no-store' }))
+        .then(r => {
+          const copy = r.clone();
+          caches.open(CACHENAME).then(c => c.put(req, copy)).catch(()=>{});
+          return r;
+        })
+        .catch(()=> null);
+      // Return cached immediately if available, else wait for network
+      return cached || fetchPromise;
+    })
   );
 });

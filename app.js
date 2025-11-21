@@ -1158,14 +1158,27 @@
   CUSTOMS = loadCustoms();
   renderCustomList();
 
+  // Pre-sorted data cached once (lazy init to avoid ordering cost per render)
+  var DATA_SORTED = null;
+  function ensureSorted(){ if(!DATA_SORTED){ DATA_SORTED = DATA.slice().sort(function(a,b){ return a.name.localeCompare(b.name); }); } }
+
+  var renderPending=null;
+  // Progressive chunked renderer: shows first batch instantly, then remaining items in idle callbacks (eliminates blank screen on iPhone)
   function renderList(filter){
+    if(renderPending){ try{cancelIdleCallback(renderPending)}catch(e){} renderPending=null; }
+    console.time && console.time('renderList');
+    ensureSorted();
     var q=(filter||'').trim().toLowerCase();
-    var items=DATA.slice().sort(function(a,b){
-      return a.name.localeCompare(b.name);
-    });
-    if(q){
-      items=items.filter(function(x){
-        var idx=x.searchIndex;
+    var cv = (categorySel && categorySel.value)? categorySel.value.toLowerCase():'';
+    var onlyFav = (onlyFavs && onlyFavs.checked);
+    // Build filtered list first
+    var filtered=[];
+    for(var i=0;i<DATA_SORTED.length;i++){
+      var x=DATA_SORTED[i];
+      if(cv && String(x.category||'').toLowerCase()!==cv) continue;
+      if(onlyFav && !favs.has(x.id)) continue;
+      if(q){
+        var idx = x.searchIndex;
         if(!idx){
           idx=[
             String(x.name||'').toLowerCase(),
@@ -1174,125 +1187,129 @@
             String(x.description||'').toLowerCase(),
             (Array.isArray(x.tags)?x.tags.join(' '):'').toLowerCase()
           ].join(' ');
-          x.searchIndex=idx;
+          x.searchIndex = idx;
         }
-        return idx.indexOf(q)!==-1;
-      });
+        if(idx.indexOf(q)===-1) continue;
+      }
+      filtered.push(x);
     }
-    if(categorySel && categorySel.value){
-      var cv=categorySel.value.toLowerCase();
-      items=items.filter(function(x){return String(x.category||'').toLowerCase()===cv});
+    if(filtered.length===0){
+      listEl.innerHTML='<div class="section"><div class="items"><div class="item"><span class="name">No results</span><span class="hz"></span></div></div></div>';
+      console.time && console.timeEnd('renderList');
+      return;
     }
-    if(onlyFavs && onlyFavs.checked){
-      items=items.filter(function(x){return favs.has(x.id)});
+    // Render first chunk immediately (up to 12 items) for instant feedback on iPhone
+    var CHUNK_SIZE=12;
+    var out=[];
+    var currentLetter=null;
+    var idx=0;
+    function renderChunk(start,end){
+      var html=[];
+      for(var i=start;i<end && i<filtered.length;i++){
+        var x=filtered[i];
+        var L=(x.name[0]||'#').toUpperCase();
+        if(L!==currentLetter){
+          if(currentLetter!==null){ html.push('</div></div>'); }
+          currentLetter=L;
+          html.push('<div class="section"><div class="section-head">'+escapeHtml(L)+'</div><div class="items">');
+        }
+        html.push(itemHtml(x));
+      }
+      return html.join('');
     }
-    var byLetter={};
-    items.forEach(function(x){
-      var k=(x.name[0]||'#').toUpperCase();
-      if(!byLetter[k])byLetter[k]=[];
-      byLetter[k].push(x);
-    });
-    var letters=Object.keys(byLetter).sort();
-    var frag=document.createDocumentFragment();
-    if(letters.length===0){
-      var empty=document.createElement('div');
-      empty.className='section';
-      empty.innerHTML='<div class="items"><div class="item"><span class="name">No results</span><span class="hz"></span></div></div>';
-      frag.appendChild(empty);
+    // Render first chunk synchronously for instant display
+    out.push(renderChunk(0,CHUNK_SIZE));
+    listEl.innerHTML = out.join('');
+    idx=CHUNK_SIZE;
+    // Schedule remaining chunks in idle callbacks
+    function scheduleNext(){
+      if(idx>=filtered.length){
+        // Close last section
+        if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
+        console.time && console.timeEnd('renderList');
+        return;
+      }
+      var nextEnd=Math.min(idx+CHUNK_SIZE, filtered.length);
+      var nextHtml=renderChunk(idx,nextEnd);
+      listEl.innerHTML += nextHtml;
+      idx=nextEnd;
+      if(idx<filtered.length){
+        renderPending = requestIdleCallback? requestIdleCallback(scheduleNext) : setTimeout(scheduleNext,0);
+      } else {
+        if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
+        console.time && console.timeEnd('renderList');
+      }
+    }
+    if(idx<filtered.length){
+      renderPending = requestIdleCallback? requestIdleCallback(scheduleNext,{timeout:50}) : setTimeout(scheduleNext,0);
     } else {
-      letters.forEach(function(L){
-        var sec=document.createElement('div');
-        sec.className='section';
-        var head=document.createElement('div');
-        head.className='section-head';
-        head.textContent=L;
-        sec.appendChild(head);
-        var wrap=document.createElement('div');
-        wrap.className='items';
-        byLetter[L].forEach(function(x){
-          var it=document.createElement('div');
-          it.className='item'; // removed role=button for better semantics
-
-          var left=document.createElement('div');
-          left.className='left';
-
-          var pick=document.createElement('input');
-          pick.type='checkbox';
-          pick.className='pick';
-          pick.checked=selected.has(x.id);
-          pick.addEventListener('click',function(ev){ev.stopPropagation()});
-          pick.addEventListener('change',function(ev){
-            if(ev.target.checked) selected.add(x.id); else selected.delete(x.id);
-            updateSelUI();
-          });
-
-          var isFav=favs.has(x.id);
-          var star=document.createElement('button');
-          star.className='star'+(isFav?' active':'');
-          star.type='button';
-          star.setAttribute('aria-label','Favorite');
-          star.textContent='★';
-          star.addEventListener('click',function(ev){
-            ev.stopPropagation();
-            if(favs.has(x.id)) favs.delete(x.id); else favs.add(x.id);
-            saveFavs(favs);
-            renderList(search.value);
-          });
-
-          var text=document.createElement('div');
-          text.className='text';
-          var name=document.createElement('div');
-          name.className='name';
-          name.textContent=x.name;
-          text.appendChild(name);
-          if(x.description){
-            var desc=document.createElement('div');
-            desc.className='desc';
-            desc.textContent=x.description;
-            text.appendChild(desc);
-          }
-          if(Array.isArray(x.tags) && x.tags.length){
-            var tags=document.createElement('div');
-            tags.className='tags';
-            x.tags.forEach(function(t){
-              var tg=document.createElement('span');
-              tg.className='tag';
-              tg.textContent=t;
-              tags.appendChild(tg);
-            });
-            text.appendChild(tags);
-          }
-          left.appendChild(pick);
-          left.appendChild(star);
-          left.appendChild(text);
-
-          var hz=document.createElement('span');
-          hz.className='hz';
-          hz.textContent=fmtHz(x.frequency);
-
-          it.appendChild(left);
-          it.appendChild(hz);
-          it.addEventListener('click',function(ev){
-            if(hasSelection()) return;
-            freqInput.value=String(x.frequency);
-            startTone(Number(x.frequency));
-          });
-          name.tabIndex=0; // focusable for keyboard activation
-          name.addEventListener('keydown',function(ev){
-            if(ev.key==='Enter' || ev.key===' '){
-              ev.preventDefault();
-              freqInput.value=String(x.frequency);
-              startTone(Number(x.frequency));
-            }
-          });
-          wrap.appendChild(it);
-        });
-        sec.appendChild(wrap);
-        frag.appendChild(sec);
-      });
+      if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
+      console.time && console.timeEnd('renderList');
     }
-    listEl.replaceChildren(frag);
   }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]); }); }
+
+  function itemHtml(x){
+    var isFav = favs.has(x.id);
+    var tagsHtml='';
+    if(Array.isArray(x.tags) && x.tags.length){
+      var tps=[]; for(var j=0;j<x.tags.length;j++){ tps.push('<span class="tag">'+escapeHtml(x.tags[j])+'</span>'); }
+      tagsHtml='<div class="tags">'+tps.join('')+'</div>';
+    }
+    var descHtml = x.description? '<div class="desc">'+escapeHtml(x.description)+'</div>':'';
+    return '<div class="item" data-id="'+escapeHtml(x.id)+'" data-freq="'+escapeHtml(x.frequency)+'">'
+      +'<div class="left">'
+      +'<input type="checkbox" class="pick" '+(selected.has(x.id)?'checked ':'')+'/>'
+      +'<button type="button" aria-label="Favorite" class="star'+(isFav?' active':'')+'">★</button>'
+      +'<div class="text"><div class="name" tabindex="0">'+escapeHtml(x.name)+'</div>'+descHtml+tagsHtml+'</div>'
+      +'</div>'
+      +'<span class="hz">'+fmtHz(x.frequency)+'</span>'
+      +'</div>';
+  }
+
+  // Event delegation for list interactions
+  var listDelegated=false;
+  function setupListDelegation(){
+    if(listDelegated) return; listDelegated=true;
+    listEl.addEventListener('click', function(ev){
+      var t=ev.target;
+      if(t.classList.contains('star')){
+        ev.stopPropagation();
+        var item=t.closest('.item'); if(!item) return;
+        var id=item.getAttribute('data-id');
+        if(favs.has(id)) favs.delete(id); else favs.add(id);
+        saveFavs(favs);
+        if(onlyFavs && onlyFavs.checked){ renderList(search.value); } else { t.classList.toggle('active'); }
+        return;
+      }
+      // clicking anywhere on item (excluding interactive controls) starts tone if no selection active
+      var itemRow=t.closest('.item');
+      if(itemRow && !t.classList.contains('pick') && !t.classList.contains('star') && !hasSelection()){
+        var freq=itemRow.getAttribute('data-freq');
+        if(freq){ freqInput.value=freq; startTone(Number(freq)); }
+      }
+    });
+    listEl.addEventListener('change', function(ev){
+      var t=ev.target;
+      if(t.classList.contains('pick')){
+        var item=t.closest('.item'); if(!item) return;
+        var id=item.getAttribute('data-id');
+        if(t.checked) selected.add(id); else selected.delete(id);
+        updateSelUI();
+      }
+    });
+    listEl.addEventListener('keydown', function(ev){
+      var t=ev.target;
+      if(t.classList.contains('name') && (ev.key==='Enter' || ev.key===' ')){
+        ev.preventDefault();
+        var item=t.closest('.item'); if(!item) return;
+        var freq=item.getAttribute('data-freq');
+        if(freq){ freqInput.value=freq; startTone(Number(freq)); }
+      }
+    });
+  }
+  setupListDelegation();
 
   // Debounced search input to reduce repeated full list DOM rebuilds on iOS
   var searchDebounce=null;
@@ -1344,6 +1361,7 @@
     ].join(' ');
   });
   buildCategories(DATA);
+  var skeleton=document.getElementById('loadingSkeleton'); if(skeleton){ skeleton.style.display='none'; }
   renderList('');
   updateUI();
   updateSearchClear();
