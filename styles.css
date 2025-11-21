@@ -11,6 +11,7 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .brand-icon{width:28px;height:28px;border-radius:6px;box-shadow:0 0 0 2px #ffffff0f}
 .brand-name{margin:0;font-size:1.05rem;letter-spacing:.2px}
 .header-actions{display:flex;align-items:center;gap:.25rem}
+.header-actions{margin-left:auto}
 .icon-btn{appearance:none;border:none;background:transparent;color:#94a3b8;border-radius:8px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .icon-btn:hover{color:#e2e8f0;background:#0b122033}
 .icon-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
@@ -156,6 +157,11 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 [data-theme="light"] #volume{background:#e5e7eb;border-color:#cbd5e1}
 [data-theme="light"] .now-playing{color:#475569}
 [data-theme="light"] .app-header{background:linear-gradient(180deg,#ffffffcc,#ffffff00);border-bottom:1px solid #e2e8f0}
+
+/* ensure header action icons sit flush to the right and are more visible in light theme */
+[data-theme="light"] .header-actions{margin-left:auto}
+[data-theme="light"] .header-actions .icon-btn{color:#0f172a}
+[data-theme="light"] .header-actions .icon-btn:hover{color:#0f172a;background:#ffffff10}
 [data-theme="light"] .section-head{background:#ffffffcc;color:#334155;border-color:#cbd5e1}
 [data-theme="light"] .item{background:#ffffff;border-color:#e2e8f0}
 [data-theme="light"] .item:hover{background:#f8fafc;border-color:#e2e8f0}
