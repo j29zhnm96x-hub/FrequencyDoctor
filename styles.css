@@ -3,9 +3,7 @@
 [data-theme="light"]{--bg1:#f8fafc;--bg2:#eef2f7;--card:#ffffffcc;--muted:#475569;--text:#0f172a;--brand:#0ea5e9;--brand2:#38bdf8;--accent:#059669}
 *{box-sizing:border-box}
 /* Loading skeleton for instant perceived speed on iPhone */
-.loading-skeleton{padding:1rem;display:flex;flex-direction:column;gap:.8rem;opacity:.6}
-.skeleton-item{height:56px;background:linear-gradient(90deg,#ffffff08 25%,#ffffff12 50%,#ffffff08 75%);background-size:200% 100%;animation:skeleton-pulse 1.5s ease-in-out infinite;border-radius:10px}
-@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* skeleton removed */
 html,body{height:100%;overflow-x:hidden}
 body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;background:radial-gradient(1200px 800px at 20% -10%,#0b3b66 0%,transparent 60%),radial-gradient(800px 600px at 120% 0%,#0a3d2e 0%,transparent 60%),linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--text);padding-bottom:env(safe-area-inset-bottom);-webkit-text-size-adjust:100%}
 .noselect, html, body, .container, .controls, .list, .item, button, .btn, .icon-btn{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -38,6 +36,7 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
   .list, .items, .controls, .now-playing { -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform; }
   /* Ensure scrolling doesn't rely on -webkit-overflow-scrolling which can trigger repaint issues */
   .modal-body{overflow:auto;}
+}
 @media(max-width:430px){
   .freq-row{flex-direction:row;flex-wrap:wrap}
   .freq-row > *{flex:0 0 auto}

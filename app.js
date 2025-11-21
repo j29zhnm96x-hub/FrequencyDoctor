@@ -1162,17 +1162,16 @@
   var DATA_SORTED = null;
   function ensureSorted(){ if(!DATA_SORTED){ DATA_SORTED = DATA.slice().sort(function(a,b){ return a.name.localeCompare(b.name); }); } }
 
-  var renderPending=null;
-  // Progressive chunked renderer: shows first batch instantly, then remaining items in idle callbacks (eliminates blank screen on iPhone)
+  // Immediate full render (fast string build) for stability
   function renderList(filter){
-    if(renderPending){ try{cancelIdleCallback(renderPending)}catch(e){} renderPending=null; }
     console.time && console.time('renderList');
     ensureSorted();
     var q=(filter||'').trim().toLowerCase();
     var cv = (categorySel && categorySel.value)? categorySel.value.toLowerCase():'';
     var onlyFav = (onlyFavs && onlyFavs.checked);
-    // Build filtered list first
-    var filtered=[];
+    var out=[];
+    var currentLetter=null;
+    var any=false;
     for(var i=0;i<DATA_SORTED.length;i++){
       var x=DATA_SORTED[i];
       if(cv && String(x.category||'').toLowerCase()!==cv) continue;
@@ -1191,61 +1190,22 @@
         }
         if(idx.indexOf(q)===-1) continue;
       }
-      filtered.push(x);
-    }
-    if(filtered.length===0){
-      listEl.innerHTML='<div class="section"><div class="items"><div class="item"><span class="name">No results</span><span class="hz"></span></div></div></div>';
-      console.time && console.timeEnd('renderList');
-      return;
-    }
-    // Render first chunk immediately (up to 12 items) for instant feedback on iPhone
-    var CHUNK_SIZE=12;
-    var out=[];
-    var currentLetter=null;
-    var idx=0;
-    function renderChunk(start,end){
-      var html=[];
-      for(var i=start;i<end && i<filtered.length;i++){
-        var x=filtered[i];
-        var L=(x.name[0]||'#').toUpperCase();
-        if(L!==currentLetter){
-          if(currentLetter!==null){ html.push('</div></div>'); }
-          currentLetter=L;
-          html.push('<div class="section"><div class="section-head">'+escapeHtml(L)+'</div><div class="items">');
-        }
-        html.push(itemHtml(x));
+      any=true;
+      var L=(x.name[0]||'#').toUpperCase();
+      if(L!==currentLetter){
+        if(currentLetter!==null){ out.push('</div></div>'); }
+        currentLetter=L;
+        out.push('<div class="section"><div class="section-head">'+escapeHtml(L)+'</div><div class="items">');
       }
-      return html.join('');
+      out.push(itemHtml(x));
     }
-    // Render first chunk synchronously for instant display
-    out.push(renderChunk(0,CHUNK_SIZE));
-    listEl.innerHTML = out.join('');
-    idx=CHUNK_SIZE;
-    // Schedule remaining chunks in idle callbacks
-    function scheduleNext(){
-      if(idx>=filtered.length){
-        // Close last section
-        if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
-        console.time && console.timeEnd('renderList');
-        return;
-      }
-      var nextEnd=Math.min(idx+CHUNK_SIZE, filtered.length);
-      var nextHtml=renderChunk(idx,nextEnd);
-      listEl.innerHTML += nextHtml;
-      idx=nextEnd;
-      if(idx<filtered.length){
-        renderPending = requestIdleCallback? requestIdleCallback(scheduleNext) : setTimeout(scheduleNext,0);
-      } else {
-        if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
-        console.time && console.timeEnd('renderList');
-      }
-    }
-    if(idx<filtered.length){
-      renderPending = requestIdleCallback? requestIdleCallback(scheduleNext,{timeout:50}) : setTimeout(scheduleNext,0);
+    if(!any){
+      out.push('<div class="section"><div class="items"><div class="item"><span class="name">No results</span><span class="hz"></span></div></div></div>');
     } else {
-      if(currentLetter!==null){ listEl.innerHTML += '</div></div>'; }
-      console.time && console.timeEnd('renderList');
+      out.push('</div></div>');
     }
+    listEl.innerHTML = out.join('');
+    console.time && console.timeEnd('renderList');
   }
 
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]); }); }
@@ -1361,7 +1321,8 @@
     ].join(' ');
   });
   buildCategories(DATA);
-  var skeleton=document.getElementById('loadingSkeleton'); if(skeleton){ skeleton.style.display='none'; }
+  // Remove skeleton (no longer used after revert)
+  var skeleton=document.getElementById('loadingSkeleton'); if(skeleton){ try{skeleton.parentNode && skeleton.parentNode.removeChild(skeleton);}catch(e){} }
   renderList('');
   updateUI();
   updateSearchClear();
