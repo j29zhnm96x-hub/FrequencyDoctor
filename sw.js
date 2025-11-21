@@ -1,5 +1,5 @@
-const CACHENAME='fd-v22';
-const ASSETS=[
+const CACHENAME = 'fd-v23';
+const ASSETS = [
   '/index.html',
   '/styles.css',
   '/app.js',
@@ -9,7 +9,7 @@ const ASSETS=[
 ];
 
 // Background audio loops to pre-cache for offline playback
-const AUDIO_LOOPS=[
+const AUDIO_LOOPS = [
   '/audio/ambientalsynth.mp3',
   '/audio/birds.mp3',
   '/audio/rain_forest.mp3',
@@ -20,7 +20,7 @@ const AUDIO_LOOPS=[
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHENAME)
-      .then(c => c.addAll(ASSETS.concat(AUDIO_LOOPS)))
+      .then(c => c.addAll(ASSETS)) // Only cache app shell, audio is lazy-loaded
       .then(() => self.skipWaiting())
   );
 });
@@ -42,9 +42,9 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  
+
   const url = new URL(req.url);
-  
+
   // 1. HTML: Network First, fall back to cache
   if (req.mode === 'navigate' || req.headers.get('accept').includes('text/html')) {
     e.respondWith(
@@ -63,7 +63,7 @@ self.addEventListener('fetch', e => {
   if (url.origin === location.origin) {
     const pathname = url.pathname;
     const ext = pathname.includes('.') ? pathname.split('.').pop().toLowerCase() : '';
-    const immutableExts = new Set(['mp3','wav','ogg','png','jpg','jpeg','gif','svg','ico','webp']);
+    const immutableExts = new Set(['mp3', 'wav', 'ogg', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp']);
 
     // Immutable assets (images, audio): Cache First, fall back to network
     if (immutableExts.has(ext)) {

@@ -45,7 +45,24 @@
 
     if (!window.FREQUENCY_DATA) {
       console.error('Frequency data not loaded');
-      if (listEl) listEl.innerHTML = '<div class="section"><div class="items"><div class="item">Error: Data file missing</div></div></div>';
+      if (listEl) {
+        listEl.innerHTML = '<div class="section"><div class="items"><div class="item" style="flex-direction:column;align-items:flex-start;gap:1rem">'
+          + '<div class="name">App update required</div>'
+          + '<div class="desc">The app needs to be reloaded to apply the latest fixes.</div>'
+          + '<button id="forceReloadBtn" class="btn primary">Update & Reload</button>'
+          + '</div></div></div>';
+        setTimeout(function () {
+          var btn = document.getElementById('forceReloadBtn');
+          if (btn) btn.addEventListener('click', function () {
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (var r of regs) r.unregister();
+                window.location.reload();
+              });
+            } else { window.location.reload(); }
+          });
+        }, 100);
+      }
     }
 
     // Help elements
