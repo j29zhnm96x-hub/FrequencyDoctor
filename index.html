@@ -131,6 +131,7 @@
           <input id="freq" type="number" min="0.1" max="20000" step="0.01" value="432">
           <button id="play" class="btn primary">Play</button>
           <button id="stop" class="btn" disabled>Stop</button>
+
           <div class="timer-group">
             <select id="sleepTimer" class="select timer-select" aria-label="Sleep timer">
               <option value="">Timer: Off</option>
@@ -153,16 +154,44 @@
             <span id="timerCountdown" class="timer-countdown" aria-live="polite" role="status" hidden>00:00:00</span>
           </div>
         </div>
-      </div>
 
-      <div class="multi-actions">
-        <span id="selCount" class="sel-count">Selected: 0</span>
-        <div class="multi-actions-right">
-          <button id="clearSelected" class="btn sm">Clear selections</button>
-          <button id="playSelected" class="btn sm">Play Selected</button>
-          <button id="saveSelectionBtn" class="btn sm">Save selection as custom</button>
-          <button id="createCustomBtn" class="btn sm primary">Create Custom Frequency</button>
+        <div class="multi-actions">
+          <span id="selCount" class="sel-count">Selected: 0</span>
+          <div class="multi-actions-right">
+            <button id="clearSelected" class="btn sm">Clear selections</button>
+            <button id="playSelected" class="btn sm">Play Selected</button>
+          </div>
         </div>
+
+        <div class="multi-actions multi-actions-secondary">
+          <div></div>
+          <div class="multi-actions-right">
+            <button id="saveSelectionBtn" class="btn sm">Save selection as custom</button>
+            <button id="createCustomBtn" class="btn sm primary">Create Custom Frequency</button>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="filter-col">
+            <div class="filter-row">
+              <label for="category">Category</label>
+              <select id="category" class="select">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <label class="fav-toggle"><input id="onlyFavs" type="checkbox"> Favorites only</label>
+          </div>
+        </div>
+
+        <div class="multi-actions">
+          <div></div>
+          <div class="multi-actions-right">
+            <button id="tabLibrary" class="btn sm primary">Library</button>
+            <button id="tabCustom" class="btn sm">Custom</button>
+          </div>
+        </div>
+
+        <div id="now-playing" class="now-playing" aria-live="polite" role="status">Idle</div>
       </div>
 
       <div class="sliders">
@@ -183,23 +212,7 @@
           <input id="freqVolume" type="range" min="0" max="100" value="100">
         </div>
       </div>
-      <div class="filters">
-        <div class="filter-row">
-          <label for="category">Category</label>
-          <select id="category" class="select">
-            <option value="">All categories</option>
-          </select>
-        </div>
-        <label class="fav-toggle"><input id="onlyFavs" type="checkbox"> Favorites only</label>
-      </div>
-      <div class="multi-actions">
-        <div></div>
-        <div class="multi-actions-right">
-          <button id="tabLibrary" class="btn sm primary">Library</button>
-          <button id="tabCustom" class="btn sm">Custom</button>
-        </div>
-      </div>
-      <div id="now-playing" class="now-playing" aria-live="polite" role="status">Idle</div>
+      
     </section>
 
     <section class="list" id="list"></section>

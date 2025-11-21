@@ -50,6 +50,11 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .search-clear:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
   .multi-actions-right{display:flex;align-items:center;gap:.6rem;flex-wrap:nowrap;white-space:nowrap}
+
+/* Secondary action row (Save/Create) */
+.multi-actions-secondary{margin-top:.4rem}
+.multi-actions-secondary .multi-actions-right{gap:.5rem;flex-wrap:nowrap}
+.multi-actions-secondary .btn{padding:.4rem .6rem}
 .freq-input label{display:block;color:var(--muted);font-size:.85rem;margin-bottom:.35rem}
 .freq-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 #freq{flex:0 0 auto;width:11ch;max-width:140px;background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:10px;padding:.6rem .7rem;outline:none}
@@ -97,6 +102,7 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .sel-count{color:var(--muted);font-size:.9rem}
 .filters{margin-top:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
 .filter-row{display:flex;align-items:center;gap:.5rem}
+.filter-col{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem}
 .select{appearance:none;background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:10px;padding:.5rem .7rem}
 .select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px #0ea5e933}
 .fav-toggle{color:var(--muted);display:flex;align-items:center;gap:.4rem}
