@@ -49,11 +49,12 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .search-clear:hover{color:#e2e8f0;background:#0b122033}
 .search-clear:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
-  .multi-actions-right{display:flex;align-items:center;gap:.6rem;flex-wrap:nowrap;white-space:nowrap}
+  /* Allow action buttons to wrap on very narrow screens */
+  .multi-actions-right{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;white-space:normal}
 
 /* Secondary action row (Save/Create) */
 .multi-actions-secondary{margin-top:.4rem}
-.multi-actions-secondary .multi-actions-right{gap:.5rem;flex-wrap:nowrap}
+.multi-actions-secondary .multi-actions-right{gap:.5rem;flex-wrap:wrap}
 .multi-actions-secondary .btn{padding:.4rem .6rem}
 .freq-input label{display:block;color:var(--muted);font-size:.85rem;margin-bottom:.35rem}
 .freq-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
@@ -98,7 +99,8 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .timer-countdown{display:inline-flex;align-items:center;justify-content:center;padding:.45rem .6rem;border:1px solid #334155;border-radius:10px;background:#0b1220;color:#e2e8f0;min-width:8.5ch;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-variant-numeric:tabular-nums;letter-spacing:.5px;box-shadow:inset 0 0 0 1px #ffffff08,0 1px 0 #0005;text-shadow:0 0 8px rgba(14,165,233,.35),0 0 2px rgba(14,165,233,.7)}
 .timer-countdown.disabled{opacity:.5;filter:saturate(.6)}
 .multi-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
-.multi-actions-right{display:flex;align-items:center;gap:.4rem}
+/* Consolidated definition: base wrapping behavior */
+.multi-actions-right{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 .sel-count{color:var(--muted);font-size:.9rem}
 .filters{margin-top:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
 .filter-row{display:flex;align-items:center;gap:.5rem}
@@ -202,3 +204,34 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 [data-theme="light"] .timer-input{background:#ffffff;border-color:#cbd5e1;color:#0f172a}
 [data-theme="light"] .timer-countdown{background:#ffffff;border-color:#cbd5e1;color:#0f172a;text-shadow:none}
 [data-theme="light"] .search-clear{background:#ffffff;border-color:#cbd5e1;color:#64748b}
+
+/* Adjust Library and Custom buttons to be side by side */
+/* Ensure action rows (Library/Custom and Save/Create) show two buttons side-by-side
+   and centered while remaining responsive. Use a 50% - gap calc so the two
+   buttons share the available width evenly. Allow button text to wrap if needed. */
+.multi-actions-right{
+  width:100%;
+  justify-content:center;
+}
+.multi-actions-right .btn,
+.multi-actions-secondary .multi-actions-right .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  /* two columns that share the row, subtract a small gap to avoid overflow */
+  flex:0 1 calc(50% - 0.35rem);
+  max-width:calc(50% - 0.35rem);
+  text-align:center;
+  white-space:normal; /* allow wrapping inside the button if text is long */
+  box-sizing:border-box;
+}
+
+/* On extremely narrow viewports allow a sensible minimum so buttons don't become too small */
+@media (max-width:340px){
+  .multi-actions-right .btn,
+  .multi-actions-secondary .multi-actions-right .btn{
+    flex:0 1 48%;
+    max-width:48%;
+    min-width:120px;
+  }
+}
