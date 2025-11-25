@@ -82,7 +82,7 @@
     var fadeInInput = document.getElementById('fadeInInput');
     var fadeOutInput = document.getElementById('fadeOutInput');
 
-    var audioCtx = null, osc = null, gain = null, playing = false, mediaDest = null;
+    var audioCtx = null, osc = null, gain = null, playing = false, mediaDest = null, silentOsc = null;
     var directConnected = false; // guard to avoid multiple connection into output chain
     var masterComp = null; // dynamics compressor to prevent clipping/distortion
     var volumeVal = Number(vol.value) / 100;
@@ -397,6 +397,19 @@
           if (outputMode !== 'media') {
             try { masterComp.disconnect(); } catch (e) { }
             try { if (!mediaDest) { mediaDest = audioCtx.createMediaStreamDestination(); } } catch (e) { }
+            // Silent oscillator to keep the MediaStream active with data
+            try {
+              if (mediaDest && !silentOsc) {
+                silentOsc = audioCtx.createOscillator();
+                silentOsc.type = 'sine';
+                silentOsc.frequency.value = 20; // Inaudible low freq
+                var sg = audioCtx.createGain();
+                sg.gain.value = 0.001; // Tiny signal
+                silentOsc.connect(sg);
+                sg.connect(mediaDest);
+                silentOsc.start();
+              }
+            } catch (e) { }
             try { masterComp.connect(mediaDest); } catch (e) { }
             if (audioOut) {
               try { if (audioOut.srcObject !== mediaDest.stream) { audioOut.srcObject = mediaDest.stream; } } catch (e) { }
@@ -478,7 +491,7 @@
       try {
         if (!audioCtx) return;
         if (audioCtx.state === 'closed') {
-          audioCtx = null; gain = null; masterComp = null; mediaDest = null; directConnected = false; outputMode = null;
+          audioCtx = null; gain = null; masterComp = null; mediaDest = null; directConnected = false; outputMode = null; silentOsc = null;
           ensureAudio(); wireOutput(); startOutputIfNeeded();
         }
       } catch (e) { }
@@ -542,11 +555,11 @@
             audioOut.pause(); audioOut.srcObject = null; audioOut.removeAttribute('src'); audioOut.load && audioOut.load();
             // Recreate the audio element to avoid stale sinks
             var oldOut = audioOut; var parent = oldOut && oldOut.parentNode;
-            if (parent) { var neo = document.createElement('audio'); neo.id = 'audioOut'; neo.setAttribute('playsinline', ''); neo.style.display = 'none'; parent.replaceChild(neo, oldOut); audioOut = neo; }
+            if (parent) { var neo = document.createElement('audio'); neo.id = 'audioOut'; neo.setAttribute('playsinline', ''); neo.style.cssText = 'opacity:0;position:absolute;pointer-events:none;z-index:-1'; parent.replaceChild(neo, oldOut); audioOut = neo; }
           }
         } catch (e) { }
         if (audioCtx) { try { audioCtx.close(); } catch (e) { } }
-        audioCtx = null; gain = null; masterComp = null; mediaDest = null; directConnected = false; outputMode = null; bgGain = null; bgSource = null; bgMediaSource = null;
+        audioCtx = null; gain = null; masterComp = null; mediaDest = null; directConnected = false; outputMode = null; bgGain = null; bgSource = null; bgMediaSource = null; silentOsc = null;
         ensureAudio(); wireOutput();
         if (autoplay) {
           // restart BG first so fades pick it up too
