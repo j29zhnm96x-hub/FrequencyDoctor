@@ -240,6 +240,11 @@ input,textarea,select,#search,#freq{-webkit-user-select:text;user-select:text}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .setting-label{color:var(--muted)}
 .setting-field{display:flex;gap:1rem;align-items:center}
+.setting-field.column-stack{flex-direction:column;align-items:stretch;gap:.35rem}
+.setting-field.flex-fill{flex:1}
+.setting-field.compact-gap{gap:.4rem;flex-wrap:wrap}
+.full-width-input{width:100%}
+.audio-hidden{opacity:0;position:absolute;pointer-events:none;z-index:-1;width:1px;height:1px}
 .radio{display:flex;align-items:center;gap:.35rem}
 
 /* Light theme component overrides */

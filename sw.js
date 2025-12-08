@@ -1,4 +1,4 @@
-const CACHENAME = 'fd-v23';
+const CACHENAME = 'fd-v26';
 const ASSETS = [
   '/index.html',
   '/styles.css',

@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>FrequencyDoctor</title>
-  <meta name="theme-color" content="#0ea5e9">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FrequencyDoctor">
@@ -220,10 +219,10 @@
       <div class="modal-body">
         <div class="setting-row"><div class="setting-label">Name</div><div class="setting-field"><input id="customName" class="search" placeholder="Name"></div></div>
         <div class="setting-row"><div class="setting-label">Description</div><div class="setting-field"><textarea id="customDesc" class="search" rows="2" placeholder="Optional"></textarea></div></div>
-        <div class="setting-row"><div class="setting-label">Frequencies</div><div class="setting-field" style="flex-direction:column;align-items:stretch;gap:.35rem"><div id="customFreqs"></div><button id="addFreqBtn" class="btn sm">Add frequency</button></div></div>
+        <div class="setting-row"><div class="setting-label">Frequencies</div><div class="setting-field column-stack"><div id="customFreqs"></div><button id="addFreqBtn" class="btn sm">Add frequency</button></div></div>
         <div class="setting-row"><div class="setting-label">Background FX</div><div class="setting-field"><select id="customBg" class="select"></select></div></div>
-        <div class="setting-row"><div class="setting-label">Default Freq volume</div><div class="setting-field" style="flex:1"><input id="customFreqVol" type="range" min="0" max="100" value="100" style="width:100%"></div></div>
-        <div class="setting-row"><div class="setting-label">Default Sleep timer</div><div class="setting-field" style="gap:.4rem"><select id="customTimer" class="select">
+        <div class="setting-row"><div class="setting-label">Default Freq volume</div><div class="setting-field flex-fill"><input id="customFreqVol" class="full-width-input" type="range" min="0" max="100" value="100"></div></div>
+        <div class="setting-row"><div class="setting-label">Default Sleep timer</div><div class="setting-field compact-gap"><select id="customTimer" class="select">
           <option value="">Off</option>
           <option value="15m">15m</option>
           <option value="30m">30m</option>
@@ -249,7 +248,7 @@
       </div>
     </div>
   </div>
-  <audio id="audioOut" playsinline style="opacity:0;position:absolute;pointer-events:none;z-index:-1"></audio>
+  <audio id="audioOut" class="audio-hidden" playsinline></audio>
   <script src="data/frequencies.js" defer></script>
   <script src="app.js" defer></script>
 </body>

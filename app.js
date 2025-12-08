@@ -1223,8 +1223,9 @@
       var q = (filter || '').trim().toLowerCase();
       var cv = (categorySel && categorySel.value) ? categorySel.value.toLowerCase() : '';
       var onlyFav = (onlyFavs && onlyFavs.checked);
-      var out = [];
-      var currentLetter = null;
+      
+      // Group items by first letter
+      var byLetter = {};
       var any = false;
       for (var i = 0; i < DATA_SORTED.length; i++) {
         var x = DATA_SORTED[i];
@@ -1246,40 +1247,119 @@
         }
         any = true;
         var L = (x.name[0] || '#').toUpperCase();
-        if (L !== currentLetter) {
-          if (currentLetter !== null) { out.push('</div></div>'); }
-          currentLetter = L;
-          out.push('<div class="section"><div class="section-head">' + escapeHtml(L) + '</div><div class="items">');
-        }
-        out.push(itemHtml(x));
+        if (!byLetter[L]) byLetter[L] = [];
+        byLetter[L].push(x);
       }
+      
+      var frag = document.createDocumentFragment();
+      
       if (!any) {
-        out.push('<div class="section"><div class="items"><div class="item"><span class="name">No results</span><span class="hz"></span></div></div></div>');
+        var empty = document.createElement('div');
+        empty.className = 'section';
+        var emptyItems = document.createElement('div');
+        emptyItems.className = 'items';
+        var emptyItem = document.createElement('div');
+        emptyItem.className = 'item';
+        var emptyName = document.createElement('span');
+        emptyName.className = 'name';
+        emptyName.textContent = 'No results';
+        var emptyHz = document.createElement('span');
+        emptyHz.className = 'hz';
+        emptyItem.appendChild(emptyName);
+        emptyItem.appendChild(emptyHz);
+        emptyItems.appendChild(emptyItem);
+        empty.appendChild(emptyItems);
+        frag.appendChild(empty);
       } else {
-        out.push('</div></div>');
+        var letters = Object.keys(byLetter).sort();
+        for (var j = 0; j < letters.length; j++) {
+          var L = letters[j];
+          var sec = document.createElement('div');
+          sec.className = 'section';
+          
+          var head = document.createElement('div');
+          head.className = 'section-head';
+          head.textContent = L;
+          sec.appendChild(head);
+          
+          var wrap = document.createElement('div');
+          wrap.className = 'items';
+          
+          var items = byLetter[L];
+          for (var k = 0; k < items.length; k++) {
+            wrap.appendChild(createItemElement(items[k]));
+          }
+          
+          sec.appendChild(wrap);
+          frag.appendChild(sec);
+        }
       }
-      listEl.innerHTML = out.join('');
+      
+      listEl.innerHTML = '';
+      listEl.appendChild(frag);
       console.time && console.timeEnd('renderList');
     }
 
-    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]); }); }
-
-    function itemHtml(x) {
+    function createItemElement(x) {
       var isFav = favs.has(x.id);
-      var tagsHtml = '';
-      if (Array.isArray(x.tags) && x.tags.length) {
-        var tps = []; for (var j = 0; j < x.tags.length; j++) { tps.push('<span class="tag">' + escapeHtml(x.tags[j]) + '</span>'); }
-        tagsHtml = '<div class="tags">' + tps.join('') + '</div>';
+      var item = document.createElement('div');
+      item.className = 'item';
+      item.setAttribute('data-id', x.id);
+      item.setAttribute('data-freq', String(x.frequency));
+      
+      var left = document.createElement('div');
+      left.className = 'left';
+      
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'pick';
+      if (selected.has(x.id)) checkbox.checked = true;
+      left.appendChild(checkbox);
+      
+      var star = document.createElement('button');
+      star.type = 'button';
+      star.className = isFav ? 'star active' : 'star';
+      star.setAttribute('aria-label', 'Favorite');
+      star.textContent = '★';
+      left.appendChild(star);
+      
+      var text = document.createElement('div');
+      text.className = 'text';
+      
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.tabIndex = 0;
+      name.textContent = x.name;
+      text.appendChild(name);
+      
+      if (x.description) {
+        var desc = document.createElement('div');
+        desc.className = 'desc';
+        desc.textContent = x.description;
+        text.appendChild(desc);
       }
-      var descHtml = x.description ? '<div class="desc">' + escapeHtml(x.description) + '</div>' : '';
-      return '<div class="item" data-id="' + escapeHtml(x.id) + '" data-freq="' + escapeHtml(x.frequency) + '">'
-        + '<div class="left">'
-        + '<input type="checkbox" class="pick" ' + (selected.has(x.id) ? 'checked ' : '') + '/>'
-        + '<button type="button" aria-label="Favorite" class="star' + (isFav ? ' active' : '') + '">★</button>'
-        + '<div class="text"><div class="name" tabindex="0">' + escapeHtml(x.name) + '</div>' + descHtml + tagsHtml + '</div>'
-        + '</div>'
-        + '<span class="hz">' + fmtHz(x.frequency) + '</span>'
-        + '</div>';
+      
+      if (Array.isArray(x.tags) && x.tags.length) {
+        var tags = document.createElement('div');
+        tags.className = 'tags';
+        for (var i = 0; i < x.tags.length; i++) {
+          var tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.textContent = x.tags[i];
+          tags.appendChild(tag);
+        }
+        text.appendChild(tags);
+      }
+      
+      left.appendChild(text);
+      item.appendChild(left);
+      
+      var hz = document.createElement('span');
+      hz.className = 'hz';
+      hz.textContent = fmtHz(x.frequency);
+      item.appendChild(hz);
+      
+      return item;
     }
 
     // Event delegation for list interactions
